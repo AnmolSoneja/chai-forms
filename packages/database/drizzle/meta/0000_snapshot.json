@@ -1,5 +1,5 @@
 {
-  "id": "6f6e03a3-fc88-4aec-ad2b-f9c43b8ba3f3",
+  "id": "cb55b5de-6932-480e-b256-d6a3b86de06b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -17,7 +17,7 @@
         },
         "full_name": {
           "name": "full_name",
-          "type": "varchar(80)",
+          "type": "varchar(100)",
           "primaryKey": false,
           "notNull": true
         },
@@ -27,15 +27,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "email_verified": {
-          "name": "email_verified",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
-        "profile_image_url": {
-          "name": "profile_image_url",
+        "password_hash": {
+          "name": "password_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": false

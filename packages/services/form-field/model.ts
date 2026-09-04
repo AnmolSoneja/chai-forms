@@ -1,0 +1,20 @@
+import { z } from "zod";
+
+const fieldTypeEnum = z.enum(["TEXT", "NUMBER", "EMAIL", "YES_NO", "PASSWORD"]);
+
+export const createFieldInput = z.object({
+    label: z.string().max(100).describe("Display label of the field"),
+    type: fieldTypeEnum.describe("Type ofthe field"),
+    formId: z.uuid().describe("UUID of the form"),
+    description: z.string().optional().describe("Helper text"),
+    placeholder: z.string().optional().describe("Placeholder text for the field"),
+    isRequired: z.boolean().optional().default(false).describe("Whether the field is required"),
+});
+
+export type CreateFieldInputType = z.infer<typeof createFieldInput>;
+
+export const getFieldsType = z.object({
+    formId: z.uuid().describe("UUID of the form to fetch fields for"),
+});
+
+export type GetFieldsInputType = z.infer<typeof getFieldsType>;
