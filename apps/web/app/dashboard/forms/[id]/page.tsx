@@ -25,9 +25,21 @@ export default function FormBuilder() {
 
     const [open, setOpen] = useState(false);
     const [label, setLabel] = useState("");
-    const [type, setType] = useState<"TEXT" | "NUMBER" | "EMAIL" | "YES_NO" | "PASSWORD">("TEXT");
+    const [type, setType] = useState<
+        | "SHORT_TEXT"
+        | "LONG_TEXT"
+        | "EMAIL"
+        | "NUMBER"
+        | "SINGLE_SELECT"
+        | "MULTI_SELECT"
+        | "YES_NO"
+        | "PASSWORD"
+        | "RATING"
+        | "DATE"
+    >("SHORT_TEXT");
     const [description, setDescription] = useState("");
     const [placeholder, setPlaceholder] = useState("");
+    const [optionsText, setOptionsText] = useState("");
     const [isRequired, setIsRequired] = useState(false);
 
     const { createFieldAsync, status, error } = useCreateField(formId ?? "");
@@ -44,13 +56,15 @@ export default function FormBuilder() {
             description: description.trim() ? description.trim() : undefined,
             placeholder: placeholder.trim() ? placeholder.trim() : undefined,
             isRequired,
+            options: optionsText.split("\n").map((option) => option.trim()).filter(Boolean),
         });
 
         setOpen(false);
         setLabel("");
-        setType("TEXT");
+        setType("SHORT_TEXT");
         setDescription("");
         setPlaceholder("");
+        setOptionsText("");
         setIsRequired(false);
     };
 
@@ -92,20 +106,30 @@ export default function FormBuilder() {
                                         onChange={(e) =>
                                             setType(
                                                 e.target.value as
-                                                    | "TEXT"
+                                                    | "SHORT_TEXT"
+                                                    | "LONG_TEXT"
                                                     | "NUMBER"
                                                     | "EMAIL"
+                                                    | "SINGLE_SELECT"
+                                                    | "MULTI_SELECT"
                                                     | "YES_NO"
-                                                    | "PASSWORD",
+                                                    | "PASSWORD"
+                                                    | "RATING"
+                                                    | "DATE",
                                             )
                                         }
                                         className="w-full rounded-md border bg-transparent px-3 py-2 text-sm text-white"
                                     >
-                                        <option value="TEXT">Text</option>
+                                        <option value="SHORT_TEXT">Short text</option>
+                                        <option value="LONG_TEXT">Long text</option>
                                         <option value="NUMBER">Number</option>
                                         <option value="EMAIL">Email</option>
+                                        <option value="SINGLE_SELECT">Single select</option>
+                                        <option value="MULTI_SELECT">Multi select</option>
                                         <option value="YES_NO">Yes / No</option>
                                         <option value="PASSWORD">Password</option>
+                                        <option value="RATING">Rating</option>
+                                        <option value="DATE">Date</option>
                                     </select>
                                 </div>
 
@@ -130,6 +154,20 @@ export default function FormBuilder() {
                                         placeholder="Optional placeholder"
                                     />
                                 </div>
+
+                                {(type === "SINGLE_SELECT" || type === "MULTI_SELECT") && (
+                                    <div>
+                                        <label className="text-sm text-white/70 block mb-1">
+                                            Options
+                                        </label>
+                                        <Textarea
+                                            value={optionsText}
+                                            onChange={(e) => setOptionsText(e.target.value)}
+                                            placeholder="One option per line"
+                                            required
+                                        />
+                                    </div>
+                                )}
 
                                 <div className="flex items-center gap-2">
                                     <Checkbox

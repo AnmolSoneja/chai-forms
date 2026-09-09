@@ -19,10 +19,10 @@ export const formsFieldRouter = router({
         .input(createFieldInputModel)
         .output(createFieldOutputModel)
         .mutation(async ({input}) => {
-            const {label, type, formId, description, placeholder, isRequired} = input;
+            const {label, type, formId, description, placeholder, isRequired, options} = input;
 
             const result = await formFieldService.createField({
-                label, type, formId, description, placeholder, isRequired
+                label, type, formId, description, placeholder, isRequired, options
             });
 
             return result;

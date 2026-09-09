@@ -22,6 +22,13 @@
       "when": 1788529936956,
       "tag": "0002_fuzzy_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788904607917,
+      "tag": "0003_greedy_warbound",
+      "breakpoints": true
     }
   ]
 }

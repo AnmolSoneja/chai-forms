@@ -35,7 +35,7 @@ export default class UserService {
         return forms;
     }
 
-    public async getFormWithFields(fromId: string) {
+    public async getFormWithFields(formId: string) {
         const rows = await db
             .select({
                 id: formsTable.id,
@@ -53,16 +53,17 @@ export default class UserService {
                 field_isRequired: formFieldsTable.isRequired,
                 field_index: formFieldsTable.index,
                 field_type: formFieldsTable.type,
+                field_options: formFieldsTable.options,
                 field_createdAt: formFieldsTable.createdAt,
                 field_updatedAt: formFieldsTable.updatedAt,
             })
             .from(formsTable)
             .leftJoin(formFieldsTable, eq(formFieldsTable.formId, formsTable.id))
-            .where(eq(formsTable.id, fromId))
+            .where(eq(formsTable.id, formId))
             .orderBy(formFieldsTable.index);
 
         if(!rows || rows.length === 0) 
-            throw new Error(`Form with ID ${fromId} not found`);
+            throw new Error(`Form with ID ${formId} not found`);
     
         const first = rows[0]!;
 
@@ -88,6 +89,7 @@ export default class UserService {
                 isRequired: r.field_isRequired,
                 index: r.field_index!.toString(),
                 type: r.field_type,
+                options: r.field_options ?? [],
                 createdAt: r.field_createdAt ? r.field_createdAt.toISOString() : null,
                 updatedAt: r.field_updatedAt ? r.field_updatedAt.toISOString() : null,
         

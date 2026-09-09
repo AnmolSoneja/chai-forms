@@ -23,10 +23,20 @@ export default class FormFieldService {
         return next.toString();
     }
     public async createField(payload: CreateFieldInputType) {
-        const {label, type, isRequired, description, formId, placeholder} = await createFieldInput.parseAsync(payload);
+        const {label, type, isRequired, description, formId, placeholder, options}
+         = await createFieldInput.parseAsync(payload);
 
+        const normalizedOptions = [...new Set(options.map((option) => option.trim()))];
         const labelKey = toLabelKey(label);
         const index = await this.getNextIndex(formId);
+
+        if (!["SINGLE_SELECT", "MULTI_SELECT"].includes(type) && normalizedOptions.length > 0) {
+            throw new Error("Only select fields can have options");
+        }
+
+        if (["SINGLE_SELECT", "MULTI_SELECT"].includes(type) && normalizedOptions.length === 0) {
+            throw new Error("Select fields require at least one option");
+        }
 
         const result = await db
             .insert(formFieldsTable)
@@ -39,6 +49,7 @@ export default class FormFieldService {
                 description, 
                 placeholder,
                 index,
+                options: normalizedOptions
             })
             .returning({id: formFieldsTable.id});
 
@@ -66,6 +77,7 @@ export default class FormFieldService {
             isRequired: r.isRequired, 
             index: r.index.toString(),
             type: r.type, 
+            options: r.options,
             createdAt: r.createdAt? r.createdAt.toISOString() : null,
             updatedAt: r.updatedAt? r.updatedAt.toISOString() : null,
         }));

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const fieldTypeEnum = z.enum(["TEXT", "NUMBER", "EMAIL", "YES_NO", "PASSWORD"]);
+export const fieldTypeEnum = z.enum(["SHORT_TEXT", "LONG_TEXT", "EMAIL", "NUMBER", "SINGLE_SELECT", "MULTI_SELECT", "YES_NO", "PASSWORD", "RATING", "DATE"]);
 
 export const createFieldInputModel = z.object({
     label: z.string().max(100).describe("Display label of the field"),
@@ -9,6 +9,7 @@ export const createFieldInputModel = z.object({
     description: z.string().optional().describe("Helper text"),
     placeholder: z.string().optional().describe("Placeholder text for the field"),
     isRequired: z.boolean().optional().default(false).describe("Whether the field is required"),
+    options: z.array(z.string().trim().min(1)).max(100).optional().default([]),
 });
 
 export const createFieldOutputModel = z.object({
@@ -31,13 +32,9 @@ export const fieldOutputModel = z.object({
     isRequired: z.boolean(),
     index: z.string(),
     type: fieldTypeEnum,
+    options: z.array(z.string()),
     createdAt: z.string().nullable(),
     updatedAt: z.string().nullable(),
 });
 
 export const getFieldsOutputModel = z.array(fieldOutputModel);
-
-// export type CreateFieldInputModelType = z.infer<typeof createFieldInputModel>;
-// export type CreateFieldOutputModelType = z.infer<typeof createFieldOutputModel>;
-// export type GetFieldsInputModelType = z.infer<typeof getFieldsInputModel>;
-// export type GetFieldsOutputModelType = z.infer<typeof getFieldsOutputModel>;

@@ -2,7 +2,7 @@ import {z} from "zod";
 
 export const submissionValueModel = z.object({
     fieldId: z.uuid().describe("UUID of the form field"),
-    value: z.string().describe("Submitted value as string"),
+    value: z.union([z.string(), z.array(z.string())]).describe("Submitted value as string or array of strings"),
 });
 
 export const createSubmissionInputModel = z.object({
@@ -26,7 +26,7 @@ export const getSubmissionByFormIdOutputModel = z.array(
         values: z.array(
             z.object({
                 fieldId: z.uuid(),
-                value: z.string(),
+                value: z.union([z.string(), z.array(z.string())]),
             })
         ),
         createdAt: z.string().nullable(),

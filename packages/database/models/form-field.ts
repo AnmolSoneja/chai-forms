@@ -1,8 +1,8 @@
-import { pgTable, timestamp, uuid, varchar, text, pgEnum, boolean, numeric } from "drizzle-orm/pg-core";
+import { jsonb, pgTable, timestamp, uuid, varchar, text, pgEnum, boolean, numeric } from "drizzle-orm/pg-core";
 import { formsTable } from "./form";
 
 export const fieldTypeEnum = pgEnum("field_type_enum", [
-    "TEXT", "EMAIL", "NUMBER", "YES_NO", "PASSWORD"
+    "SHORT_TEXT", "LONG_TEXT", "EMAIL", "NUMBER", "SINGLE_SELECT", "MULTI_SELECT", "YES_NO", "PASSWORD", "RATING", "DATE"
 ]) 
 
 export const formFieldsTable = pgTable("form_fields", {
@@ -19,6 +19,8 @@ export const formFieldsTable = pgTable("form_fields", {
 
     index: numeric("index").notNull(),
     type: fieldTypeEnum("type").notNull(),
+
+    options: jsonb("options").$type<string[]>().default([]).notNull(),
     
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),

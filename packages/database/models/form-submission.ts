@@ -2,8 +2,8 @@ import { json, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
 import { formsTable } from "./form";
 
 export interface FormSubmissionValue {
-    fieldId: string,
-    value: string,
+    fieldId: string;
+    value: string | string[];
 }
 
 export type FormSubmissionValueRow = FormSubmissionValue[];
