@@ -1,7 +1,16 @@
 import { formService } from "../../services";
 import { authenticatedProcedure, publicProcedure, router } from "../../trpc";
 import { generatePath } from "../../utils/path-generator";
-import { createFormInputModel, createFormOutputModel, getFormInputModel, getFormOutputModel, listFormsInputModel, listFormsOutputModel } from "./model";
+import {
+    createFormInputModel,
+    createFormOutputModel,
+    getFormInputModel,
+    getFormOutputModel,
+    listFormsInputModel,
+    listFormsOutputModel,
+    setPublishedInputModel,
+    setPublishedOutputModel,
+} from "./model";
 
 const TAGS = ["Form"];
 const getPath = generatePath("/form");
@@ -41,6 +50,32 @@ export const formRouter = router({
             const forms = await formService.listFormsByUserId({ userId: ctx.user.id });
             return forms;
         }),
+
+    setPublished: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "POST",
+                path: getPath("/setPublished"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .input(setPublishedInputModel)
+        .output(setPublishedOutputModel)
+        .mutation(async ({ input, ctx }) => formService.setPublished(input.formId, ctx.user.id, input.isPublished)),
+
+    getFormForOwner: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "GET",
+                path: getPath("/getFormForOwner"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .input(getFormInputModel)
+        .output(getFormOutputModel)
+        .query(async ({ input, ctx }) => formService.getFormForOwner(input.formId, ctx.user.id)),
     
     getFormWithFields: publicProcedure
         .meta({
@@ -54,7 +89,7 @@ export const formRouter = router({
         .output(getFormOutputModel)
         .query(async ({input})=> {
             const {formId} = input;
-            const form = await formService.getFormWithFields(formId);
+            const form = await formService.getPublishedFormWithFields(formId);
             return form;
         })
 });

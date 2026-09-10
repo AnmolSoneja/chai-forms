@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "drawably/style.css";
+@import "drawably/font.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -119,5 +121,170 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-color: #fff3b0;
+    color: #5c3d2e;
   }
+}
+
+:root {
+  --drawably-stroke: var(--theme-border);
+  --drawably-fill: #ffc2d1;
+  --drawably-paper: #fffdf7;
+  --theme-bg: #fff3b0;
+  --theme-surface: #fffdf7;
+  --theme-card: #fff8df;
+  --theme-text: #5c3d2e;
+  --theme-muted: #8a6755;
+  --theme-accent: #ffb3c6;
+  --theme-border: #d9b6a5;
+}
+
+body[data-theme="brownie"] {
+  --theme-bg: #2b1e16;
+  --theme-surface: #4a3428;
+  --theme-card: #3b291f;
+  --theme-text: #f5e6d3;
+  --theme-muted: #d9a066;
+  --theme-accent: #d9a066;
+  --theme-border: #76543e;
+  --drawably-stroke: var(--theme-border);
+  --drawably-fill: #d9a066;
+  --drawably-paper: #4a3428;
+}
+
+body {
+  font-family: "Drawably Pen", var(--font-geist-sans), sans-serif;
+}
+
+body[data-theme="brownie"] {
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+body[data-theme="brownie"] main {
+  background-color: var(--theme-bg) !important;
+  color: var(--theme-text) !important;
+}
+
+body[data-theme="brownie"] main article,
+body[data-theme="brownie"] main section > div,
+body[data-theme="brownie"] main form,
+body[data-theme="brownie"] main table {
+  color: var(--theme-text);
+}
+
+body[data-theme="brownie"] [data-slot="dialog-content"] {
+  background-color: var(--theme-surface) !important;
+  border-color: var(--theme-border) !important;
+  color: var(--theme-text) !important;
+  box-shadow: 0 18px 60px rgb(0 0 0 / 35%);
+}
+
+body[data-theme="brownie"] [data-slot="dialog-overlay"] {
+  background-color: rgb(17 10 7 / 72%);
+}
+
+body[data-theme="brownie"] input,
+body[data-theme="brownie"] textarea,
+body[data-theme="brownie"] select {
+  background-color: var(--theme-bg) !important;
+  border-color: var(--theme-border) !important;
+  color: var(--theme-text) !important;
+}
+
+body[data-theme="brownie"] option {
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+body[data-theme="brownie"] .bg-white\/5,
+body[data-theme="brownie"] .bg-white\/10 {
+  background-color: var(--theme-surface) !important;
+}
+
+body[data-theme="brownie"] .border-white\/10 {
+  border-color: var(--theme-border) !important;
+}
+
+.drawably-card,
+.drawably-button {
+  border-width: 0 !important;
+  font-family: inherit !important;
+}
+
+:is(.drawably-inputbox, .drawably-textarea, .drawably-select) {
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  background-color: var(--theme-card);
+  transition: border-color 160ms ease, background-color 160ms ease;
+  font-family: inherit !important;
+
+}
+
+:is(.drawably-inputbox, .drawably-textarea, .drawably-select) > .drawably-svg {
+  font-family: inherit !important;
+  display: none;
+}
+
+:is(.drawably-inputbox, .drawably-textarea, .drawably-select):focus-within {
+  font-family: inherit !important;
+  border-color: var(--theme-accent);
+}
+
+:is(.drawably-inputbox, .drawably-textarea, .drawably-select) :is(input, textarea, select) {
+  font-family: inherit !important;
+  border-radius: 0.75rem;
+}
+
+.drawably-inputbox,
+.drawably-select {
+  display: block;
+  width: 100%;
+  height: 2.75rem;
+  font-family: inherit !important;
+}
+
+.drawably-textarea {
+  display: block;
+  width: 100%;
+  height: 6rem;
+  font-family: inherit !important;
+}
+
+.drawably-textarea textarea {
+  height: 100%;
+  min-height: 0 !important;
+  resize: none;
+  font-family: inherit !important;
+}
+
+.drawably-button {
+  border-radius: 0.75rem;
+  font-weight: 700;
+  font-family: inherit !important;
+}
+
+.publish-button.drawably-button:disabled {
+  opacity: 1;
+  font-family: inherit !important;
+}
+
+.drawably-divider {
+  --drawably-stroke: var(--theme-border);
+}
+
+.frosting-spinner {
+  display: inline-block;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0.35rem solid #ffc2d1;
+  border-top-color: #d46c87;
+  border-radius: 58% 42% 52% 48%;
+  animation: frosting-swirl 900ms ease-in-out infinite;
+}
+
+@keyframes frosting-swirl {
+  0% { transform: rotate(0deg) scale(0.92); border-radius: 58% 42% 52% 48%; }
+  50% { transform: rotate(180deg) scale(1.05); border-radius: 42% 58% 48% 52%; }
+  100% { transform: rotate(360deg) scale(0.92); border-radius: 58% 42% 52% 48%; }
 }

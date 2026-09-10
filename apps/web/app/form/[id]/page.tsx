@@ -1,26 +1,23 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { useGetFormWithFields } from "~/hooks/api/form";
 import { useCreateSubmission } from "~/hooks/api/form-submission";
 
-import { Input } from "~/components/ui/input";
-import { Textarea } from "~/components/ui/textarea";
-import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
 import { Star } from "lucide-react";
+import { DrawablyButton, DrawablyCheckbox, DrawablyInput, DrawablySelect, DrawablyTextarea } from "drawably/react";
 
 export default function PublicFormPage() {
     const params = useParams();
+    const router = useRouter();
     const formId = params?.id as string | undefined;
 
     const { form, isLoading } = useGetFormWithFields(formId ?? "");
     const { createSubmissionAsync, status, error } = useCreateSubmission();
 
     const [values, setValues] = useState<Record<string, string | string[]>>({});
-    const [submitted, setSubmitted] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -71,120 +68,120 @@ export default function PublicFormPage() {
 
         try {
             await createSubmissionAsync(payload);
-            setSubmitted(true);
-            setValues((s) => Object.fromEntries(
-                Object.entries(s).map(([fieldId, value]) => [fieldId, Array.isArray(value) ? [] : ""]),
-            ));
+            router.replace(`/form/${formId}/confirmation`);
         } catch {
             // The mutation error is rendered below the fields.
         }
     };
 
-    if (isLoading) return <div className="p-6">Loading form…</div>;
-    if (!form) return <div className="p-6">Form not found.</div>;
+    if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-[#fff3b0] p-6 text-[#5c3d2e]"><span className="frosting-spinner" aria-label="Loading" /></div>;
+    if (!form) return <div className="flex min-h-screen items-center justify-center bg-[#fff3b0] p-6 text-[#5c3d2e]">Form not found.</div>;
 
     return (
-        <main className="min-h-screen bg-black text-white px-6 py-6">
+        <main className="relative min-h-screen overflow-hidden bg-[#fff3b0] px-6 py-8 text-[#5c3d2e]">
+            <div className="pointer-events-none absolute right-8 top-8 text-4xl tracking-[0.5em] text-[#ff8fab]">✦ ･ ✧</div>
             <div className="mx-auto max-w-2xl">
-                <h1 className="text-2xl font-semibold mb-2">{form.title}</h1>
-                {form.description ? <p className="text-white/60 mb-6">{form.description}</p> : null}
+                <div className="mb-8 rounded-[1.5rem] border-2 border-[#d9b6a5] bg-[#fffdf7] p-6 shadow-[0_18px_50px_rgba(92,61,46,0.12)]">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d46c87]">A little something for you</p>
+                    <h1 className="mt-2 text-3xl font-semibold">{form.title}</h1>
+                    {form.description ? <p className="mt-2 text-[#8a6755]">{form.description}</p> : null}
+                </div>
 
-                {submitted ? (
-                    <div className="mb-6 rounded-md bg-white/5 p-4 text-white/80">
-                        Thanks — your submission was received.
-                    </div>
-                ) : null}
-
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4 rounded-[1.5rem] border-2 border-[#d9b6a5] bg-[#fffdf7] p-6 shadow-[0_18px_50px_rgba(92,61,46,0.12)]">
                     {form.fields.map((f) => (
                         <div key={f.id} className="space-y-1">
-                            <label className="block text-sm text-white/80">
+                            <label className="block text-sm font-medium text-[#5c3d2e]">
                                 {f.label}
                                 {f.isRequired ? <span className="text-red-400"> *</span> : null}
                             </label>
                             {f.type === "SHORT_TEXT" && (
-                                <Input
+                                <DrawablyInput
                                     value={typeof values[f.id] === "string" ? values[f.id] : ""}
                                     onChange={(e) => handleChange(f.id, e.target.value)}
                                     placeholder={f.placeholder ?? ""}
                                     required={f.isRequired}
+                                    className="block w-full [&>input]:h-10"
                                 />
                             )}
 
                             {f.type === "LONG_TEXT" && (
-                                <Textarea
+                                <DrawablyTextarea
                                     value={typeof values[f.id] === "string" ? values[f.id] : ""}
                                     onChange={(e) => handleChange(f.id, e.target.value)}
                                     placeholder={f.placeholder ?? ""}
                                     required={f.isRequired}
-                                    className="min-h-28"
+                                    className="block w-full [&>textarea]:min-h-28"
                                 />
                             )}
 
                             {f.type === "NUMBER" && (
-                                <Input
+                                <DrawablyInput
                                     type="number"
                                     value={typeof values[f.id] === "string" ? values[f.id] : ""}
                                     onChange={(e) => handleChange(f.id, e.target.value)}
                                     placeholder={f.placeholder ?? ""}
                                     required={f.isRequired}
+                                    className="block w-full [&>input]:h-10"
                                 />
                             )}
 
                             {f.type === "EMAIL" && (
-                                <Input
+                                <DrawablyInput
                                     type="email"
                                     value={typeof values[f.id] === "string" ? values[f.id] : ""}
                                     onChange={(e) => handleChange(f.id, e.target.value)}
                                     placeholder={f.placeholder ?? ""}
                                     required={f.isRequired}
+                                    className="block w-full [&>input]:h-10"
                                 />
                             )}
 
                             {f.type === "PASSWORD" && (
-                                <Input
+                                <DrawablyInput
                                     type="password"
                                     value={typeof values[f.id] === "string" ? values[f.id] : ""}
                                     onChange={(e) => handleChange(f.id, e.target.value)}
                                     placeholder={f.placeholder ?? ""}
                                     required={f.isRequired}
+                                    className="block w-full [&>input]:h-10"
                                 />
                             )}
 
                             {f.type === "DATE" && (
-                                <Input
+                                <DrawablyInput
                                     type="date"
                                     value={typeof values[f.id] === "string" ? values[f.id] : ""}
                                     onChange={(e) => handleChange(f.id, e.target.value)}
                                     required={f.isRequired}
+                                    className="block w-full [&>input]:h-10"
                                 />
                             )}
 
                             {f.type === "YES_NO" && (
-                                <select
+                                <DrawablySelect
                                     value={typeof values[f.id] === "string" ? values[f.id] : ""}
                                     onChange={(e) => handleChange(f.id, e.target.value)}
-                                    className="w-full rounded-md border bg-transparent px-3 py-2 text-sm text-white"
+                                    className="block w-full bg-transparent text-sm text-(--theme-text) [&>select]:h-10"
                                     required={f.isRequired}
                                 >
                                     <option value="">Select...</option>
                                     <option value="true">Yes</option>
                                     <option value="false">No</option>
-                                </select>
+                                </DrawablySelect>
                             )}
 
                             {f.type === "SINGLE_SELECT" && (
-                                <select
+                                <DrawablySelect
                                     value={typeof values[f.id] === "string" ? values[f.id] : ""}
                                     onChange={(e) => handleChange(f.id, e.target.value)}
-                                    className="w-full rounded-md border bg-transparent px-3 py-2 text-sm text-white"
+                                    className="block w-full bg-transparent text-sm text-(--theme-text) [&>select]:h-10"
                                     required={f.isRequired}
                                 >
                                     <option value="">Select...</option>
                                     {f.options.map((option) => (
                                         <option key={option} value={option}>{option}</option>
                                     ))}
-                                </select>
+                                </DrawablySelect>
                             )}
 
                             {f.type === "MULTI_SELECT" && (
@@ -195,12 +192,12 @@ export default function PublicFormPage() {
                                         const selected = current.includes(option);
                                         return (
                                             <label key={option} className="flex items-center gap-3 text-sm text-white/80">
-                                                <Checkbox
+                                                <DrawablyCheckbox
                                                     checked={selected}
-                                                    onCheckedChange={(checked) => {
+                                                    onChange={(event) => {
                                                         handleChange(
                                                             f.id,
-                                                            checked ? [...current, option] : current.filter((value) => value !== option),
+                                                            event.target.checked ? [...current, option] : current.filter((value) => value !== option),
                                                         );
                                                     }}
                                                 />
@@ -214,9 +211,10 @@ export default function PublicFormPage() {
                             {f.type === "RATING" && (
                                 <div className="flex gap-2" role="radiogroup" aria-label={f.label}>
                                     {[1, 2, 3, 4, 5].map((rating) => (
-                                        <button
+                                        <DrawablyButton
                                             key={rating}
                                             type="button"
+                                            variant="outline"
                                             aria-checked={values[f.id] === String(rating)}
                                             role="radio"
                                             onClick={() => handleChange(f.id, String(rating))}
@@ -227,7 +225,7 @@ export default function PublicFormPage() {
                                                 className="size-8"
                                                 fill={values[f.id] === String(rating) ? "currentColor" : "none"}
                                             />
-                                        </button>
+                                        </DrawablyButton>
                                     ))}
                                     {f.isRequired && (
                                         <input
@@ -243,22 +241,24 @@ export default function PublicFormPage() {
                             )}
 
                             {f.description ? (
-                                <div className="text-sm text-white/60">{f.description}</div>
+                                    <div className="text-sm text-[#8a6755]">{f.description}</div>
                             ) : null}
                         </div>
                     ))}
 
-                    {validationError ? <div className="text-sm text-red-400">{validationError}</div> : null}
-                    {error ? <div className="text-sm text-red-400">{error.message}</div> : null}
+                    {validationError ? <div className="text-sm text-[#b34f66]">{validationError}</div> : null}
+                    {error ? <div className="text-sm text-[#b34f66]">{error.message}</div> : null}
 
                     <div>
-                        <Button
+                        <DrawablyButton
                             type="submit"
                             disabled={status === "pending"}
-                            className="bg-white text-black"
+                            variant="solid"
+                            state={status === "pending" ? "loading" : "idle"}
+                            className="bg-[#ffb3c6] text-[#5c3d2e]"
                         >
                             {status === "pending" ? "Submitting..." : "Submit"}
-                        </Button>
+                        </DrawablyButton>
                     </div>
                 </form>
             </div>

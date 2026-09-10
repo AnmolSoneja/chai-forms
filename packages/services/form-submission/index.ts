@@ -2,10 +2,20 @@ import db, { eq } from "@repo/database";
 import { createSubmissionInput, CreateSubmissionInputType } from "./model";
 import { formSubmissionTable } from "@repo/database/models/form-submission";
 import { formFieldsTable } from "@repo/database/models/form-field";
+import { formsTable } from "@repo/database/models/form";
 
 export default class FormSubmissionService {
     public async createSubmission(payload: CreateSubmissionInputType) {
         const {formId, values} = await createSubmissionInput.parseAsync(payload);
+
+        const [form] = await db
+            .select({ isPublished: formsTable.isPublished })
+            .from(formsTable)
+            .where(eq(formsTable.id, formId));
+
+        if (!form?.isPublished) {
+            throw new Error("This form is not available");
+        }
 
         const fields = await db
             .select()

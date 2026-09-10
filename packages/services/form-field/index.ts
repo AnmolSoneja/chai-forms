@@ -83,4 +83,17 @@ export default class FormFieldService {
         }));
     }
 
+    public async deleteField(id: string) {
+        const result = await db
+            .delete(formFieldsTable)
+            .where(eq(formFieldsTable.id, id))
+            .returning({ id: formFieldsTable.id });
+
+        if (!result[0]?.id) {
+            throw new Error("Field not found");
+        }
+
+        return result[0];
+    }
+
 }

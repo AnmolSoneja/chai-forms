@@ -1,7 +1,14 @@
 import { formFieldService } from "../../services";
 import { authenticatedProcedure, router } from "../../trpc";
 import { generatePath } from "../../utils/path-generator";
-import { createFieldInputModel, createFieldOutputModel, getFieldsInputModel, getFieldsOutputModel } from "./model";
+import {
+    createFieldInputModel,
+    createFieldOutputModel,
+    deleteFieldInputModel,
+    deleteFieldOutputModel,
+    getFieldsInputModel,
+    getFieldsOutputModel,
+} from "./model";
 
 const TAGS = ["FormField"];
 const getPath = generatePath("/form-field");
@@ -44,4 +51,17 @@ export const formsFieldRouter = router({
             const result = await formFieldService.getFields(formId);
             return result;
         }),
+
+    deleteField: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "DELETE",
+                path: getPath("/deleteField"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .input(deleteFieldInputModel)
+        .output(deleteFieldOutputModel)
+        .mutation(async ({ input }) => formFieldService.deleteField(input.id)),
 });

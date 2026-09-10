@@ -37,4 +37,12 @@ export const fieldOutputModel = z.object({
     updatedAt: z.string().nullable(),
 });
 
+export const deleteFieldInputModel = z.object({
+    id: z.uuid().describe("UUID of the field to delete"),
+});
+
+export const deleteFieldOutputModel = z.object({
+    id: z.uuid(),
+});
+
 export const getFieldsOutputModel = z.array(fieldOutputModel);

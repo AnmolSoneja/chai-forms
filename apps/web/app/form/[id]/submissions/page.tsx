@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useGetSubmissionsByFormId } from "~/hooks/api/form-submission";
 import { useGetFields } from "~/hooks/api/form-field";
+import { DrawablyCard } from "drawably/react";
 
 type Submission = {
     id: string;
@@ -24,29 +25,29 @@ export default function FormSubmissions() {
 
     const loading = subsLoading || fieldsLoading;
 
-    if (loading) return <div className="p-6">Loading submissions…</div>;
-    if (error) return <div className="p-6 text-red-400">Error loading submissions</div>;
+    if (loading) return <div className="flex min-h-screen items-center justify-center bg-[#2b1e16] p-6 text-[#f5e6d3]"><span className="frosting-spinner" aria-label="Loading" /></div>;
+    if (error) return <div className="min-h-screen bg-[#2b1e16] p-6 text-[#e8a18c]">Error loading submissions</div>;
 
     return (
-        <main className="min-h-screen bg-slate-50 p-6">
-            <div className="mx-auto max-w-5xl bg-white rounded-md shadow-sm p-6">
-                <h2 className="text-lg font-semibold mb-4 text-slate-900">Submissions</h2>
+        <main className="min-h-screen bg-[#2b1e16] p-6 text-[#f5e6d3]">
+            <DrawablyCard className="mx-auto max-w-5xl rounded-[1.5rem] bg-[#4a3428] p-6 shadow-[0_18px_60px_rgba(217,160,102,0.12)]">
+                <h2 className="mb-4 text-lg font-semibold text-[#f5e6d3]">Submissions</h2>
 
-                <div className="mb-4 text-sm text-slate-600">Total: {rows.length}</div>
+                <div className="mb-4 text-sm text-[#d9a066]">Total: {rows.length}</div>
 
                 {/* determine ordered fields to render as columns */}
                 {fields && fields.length > 0 && (
-                    <div className="mb-4 text-xs text-slate-600">
+                    <div className="mb-4 text-xs text-[#d9a066]/75">
                         Fields: {fields.map((f) => f.label).join(", ")}
                     </div>
                 )}
 
                 {rows.length === 0 ? (
-                    <div className="rounded-md bg-white p-4 border">No submissions yet.</div>
+                    <div className="rounded-xl border border-[#76543e] bg-[#2b1e16] p-4 text-[#d9a066]">No submissions yet.</div>
                 ) : (
-                    <div className="overflow-auto rounded-md border">
+                    <div className="overflow-auto rounded-xl border border-[#76543e]">
                         <table className="min-w-full table-fixed text-sm">
-                            <thead className="bg-slate-900 text-left text-white">
+                            <thead className="bg-[#2b1e16] text-left text-[#f5e6d3]">
                                 <tr>
                                     <th className="px-4 py-2 w-1/6">ID</th>
                                     <th className="px-4 py-2 w-1/6">Submitted</th>
@@ -63,11 +64,11 @@ export default function FormSubmissions() {
                             </thead>
                             <tbody>
                                 {rows.map((r) => (
-                                    <tr key={r.id} className="odd:bg-white even:bg-slate-100">
-                                        <td className="px-4 py-3 align-top break-all text-xs text-slate-800">
+                                    <tr key={r.id} className="border-t border-[#76543e] odd:bg-[#4a3428] even:bg-[#543b2c]">
+                                        <td className="px-4 py-3 align-top break-all text-xs text-[#f5e6d3]">
                                             {r.id}
                                         </td>
-                                        <td className="px-4 py-3 align-top text-xs text-slate-600">
+                                        <td className="px-4 py-3 align-top text-xs text-[#d9a066]">
                                             {r.createdAt
                                                 ? new Date(r.createdAt).toLocaleString()
                                                 : "-"}
@@ -83,7 +84,7 @@ export default function FormSubmissions() {
                                                 return (
                                                     <td
                                                         key={f.id}
-                                                        className="px-4 py-3 align-top text-xs text-slate-700"
+                                                        className="px-4 py-3 align-top text-xs text-[#f5e6d3]/85"
                                                     >
                                                         {v ? v.value : "-"}
                                                     </td>
@@ -95,7 +96,7 @@ export default function FormSubmissions() {
                         </table>
                     </div>
                 )}
-            </div>
+            </DrawablyCard>
         </main>
     );
 }

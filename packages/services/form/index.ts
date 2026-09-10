@@ -1,7 +1,7 @@
 import {formsTable} from "@repo/database/models/form";
 
 import { createFormInput, listFormsByUserIdInput, ListFormsByUserIdInputType, type CreateFormInputType } from "./model";
-import { db, eq } from "@repo/database";
+import { and, db, eq } from "@repo/database";
 import { formFieldsTable } from "@repo/database/models/form-field";
 
 export default class UserService {
@@ -26,6 +26,7 @@ export default class UserService {
             id: formsTable.id,
             title: formsTable.title,
             description: formsTable.description,
+            isPublished: formsTable.isPublished,
             createdAt: formsTable.createdAt,
             updatedAt: formsTable.updatedAt,
         })
@@ -35,12 +36,21 @@ export default class UserService {
         return forms;
     }
 
-    public async getFormWithFields(formId: string) {
+    public async getPublishedFormWithFields(formId: string) {
+        return this.getFormWithFields(formId, undefined, true);
+    }
+
+    public async getFormForOwner(formId: string, userId: string) {
+        return this.getFormWithFields(formId, userId, false);
+    }
+
+    private async getFormWithFields(formId: string, userId: string | undefined, requirePublished: boolean) {
         const rows = await db
             .select({
                 id: formsTable.id,
                 title: formsTable.title,
                 description: formsTable.description,
+                isPublished: formsTable.isPublished,
                 createdAt: formsTable.createdAt,
                 updatedAt: formsTable.updatedAt,
 
@@ -59,7 +69,10 @@ export default class UserService {
             })
             .from(formsTable)
             .leftJoin(formFieldsTable, eq(formFieldsTable.formId, formsTable.id))
-            .where(eq(formsTable.id, formId))
+            .where(and(
+                eq(formsTable.id, formId),
+                userId ? eq(formsTable.createdBy, userId) : eq(formsTable.isPublished, requirePublished),
+            ))
             .orderBy(formFieldsTable.index);
 
         if(!rows || rows.length === 0) 
@@ -71,6 +84,7 @@ export default class UserService {
             id: first.id,
             title: first.title,
             description: first.description,
+            isPublished: first.isPublished,
             createdAt: first.createdAt ? first.createdAt.toISOString() : null,
             updatedAt: first.updatedAt  ? first.updatedAt.toISOString(): null,
             fields: [] as Array<any>,
@@ -97,5 +111,19 @@ export default class UserService {
         }
 
         return form;
+    }
+
+    public async setPublished(formId: string, userId: string, isPublished: boolean) {
+        const result = await db
+            .update(formsTable)
+            .set({ isPublished })
+            .where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)))
+            .returning({ id: formsTable.id, isPublished: formsTable.isPublished });
+
+        if (!result[0]?.id) {
+            throw new Error("Form not found");
+        }
+
+        return result[0];
     }
 }

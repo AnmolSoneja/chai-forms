@@ -1,4 +1,4 @@
-import { pgTable, timestamp, uuid, varchar, text } from "drizzle-orm/pg-core";
+import { boolean, pgTable, timestamp, uuid, varchar, text } from "drizzle-orm/pg-core";
 import { usersTable } from "./user";
 
 export const formsTable = pgTable("forms", {
@@ -6,6 +6,7 @@ export const formsTable = pgTable("forms", {
 
     title: varchar("title", {length: 50},).notNull(),
     description: varchar("description", {length: 300}),
+    isPublished: boolean("is_published").default(false).notNull(),
     
     createdBy: uuid("created_by").references(()=>usersTable.id),
     

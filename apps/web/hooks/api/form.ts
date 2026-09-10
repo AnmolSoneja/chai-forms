@@ -69,3 +69,32 @@ export const useGetFormWithFields = (formId: string) => {
         status,
     }
 }
+
+export const useGetFormForOwner = (formId: string) => {
+    const {
+        data: form,
+        error,
+        isLoading,
+        status,
+    } = trpc.form.getFormForOwner.useQuery({ formId });
+
+    return { form, error, isLoading, status };
+};
+
+export const useSetPublished = (formId: string) => {
+    const utils = trpc.useUtils();
+    const {
+        mutateAsync: setPublishedAsync,
+        error,
+        status,
+    } = trpc.form.setPublished.useMutation({
+        onSuccess: async () => {
+            await Promise.all([
+                utils.form.getFormForOwner.invalidate({ formId }),
+                utils.form.listForms.invalidate(),
+            ]);
+        },
+    });
+
+    return { setPublishedAsync, error, status };
+};
