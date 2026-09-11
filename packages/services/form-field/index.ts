@@ -1,6 +1,7 @@
-import { db, eq, max } from "@repo/database";
-import { createFieldInput, CreateFieldInputType } from "./model";
+import { and, db, eq, max } from "@repo/database";
+import { createFieldInput, CreateFieldInputType, updateFieldInput, UpdateFieldInputType } from "./model";
 import {formFieldsTable} from "@repo/database/models/form-field"
+import { formsTable } from "@repo/database/models/form";
 
 function toLabelKey(label : string): string {
     return label 
@@ -86,6 +87,56 @@ export default class FormFieldService {
     public async deleteField(id: string) {
         const result = await db
             .delete(formFieldsTable)
+            .where(eq(formFieldsTable.id, id))
+            .returning({ id: formFieldsTable.id });
+
+        if (!result[0]?.id) {
+            throw new Error("Field not found");
+        }
+
+        return result[0];
+    }
+
+    public async updateField(payload: UpdateFieldInputType, userId: string) {
+        const { id, formId, label, type, isRequired, description, placeholder, options } =
+            await updateFieldInput.parseAsync(payload);
+        const normalizedOptions = [...new Set(options.map((option) => option.trim()))];
+
+        if (!["SINGLE_SELECT", "MULTI_SELECT"].includes(type) && normalizedOptions.length > 0) {
+            throw new Error("Only select fields can have options");
+        }
+
+        if (["SINGLE_SELECT", "MULTI_SELECT"].includes(type) && normalizedOptions.length === 0) {
+            throw new Error("Select fields require at least one option");
+        }
+
+        const ownedField = await db
+            .select({ id: formFieldsTable.id })
+            .from(formFieldsTable)
+            .innerJoin(formsTable, eq(formsTable.id, formFieldsTable.formId))
+            .where(and(
+                eq(formFieldsTable.id, id),
+                eq(formFieldsTable.formId, formId),
+                eq(formsTable.createdBy, userId),
+            ));
+
+        if (!ownedField[0]?.id) {
+            throw new Error("Field not found");
+        }
+
+        const result = await db
+            .update(formFieldsTable)
+            .set({
+                label,
+                labelKey: toLabelKey(label),
+                type,
+                isRequired,
+                description,
+                placeholder: ["SINGLE_SELECT", "MULTI_SELECT", "YES_NO", "RATING"].includes(type)
+                    ? null
+                    : placeholder,
+                options: normalizedOptions,
+            })
             .where(eq(formFieldsTable.id, id))
             .returning({ id: formFieldsTable.id });
 

@@ -48,4 +48,12 @@ export const setPublishedOutputModel = z.object({
     isPublished: z.boolean(),
 });
 
+export const deleteFormInputModel = z.object({
+    formId: z.uuid(),
+});
+
+export const deleteFormOutputModel = z.object({
+    id: z.uuid(),
+});
+
 

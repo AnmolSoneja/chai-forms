@@ -8,6 +8,8 @@ import {
     deleteFieldOutputModel,
     getFieldsInputModel,
     getFieldsOutputModel,
+    updateFieldInputModel,
+    updateFieldOutputModel,
 } from "./model";
 
 const TAGS = ["FormField"];
@@ -64,4 +66,17 @@ export const formsFieldRouter = router({
         .input(deleteFieldInputModel)
         .output(deleteFieldOutputModel)
         .mutation(async ({ input }) => formFieldService.deleteField(input.id)),
+
+    updateField: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "PUT",
+                path: getPath("/updateField"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .input(updateFieldInputModel)
+        .output(updateFieldOutputModel)
+        .mutation(async ({ input, ctx }) => formFieldService.updateField(input, ctx.user.id)),
 });

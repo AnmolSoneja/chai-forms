@@ -46,6 +46,21 @@ export const useDeleteField = (formId: string) => {
     return { deleteFieldAsync, error, status };
 };
 
+export const useUpdateField = (formId: string) => {
+    const utils = trpc.useUtils();
+    const {
+        mutateAsync: updateFieldAsync,
+        error,
+        status,
+    } = trpc.formField.updateField.useMutation({
+        onSuccess: async () => {
+            await utils.formField.getFields.invalidate({ formId });
+        },
+    });
+
+    return { updateFieldAsync, error, status };
+};
+
 export const useGetFields = (formId: string) => {
     const {
         data: fields,

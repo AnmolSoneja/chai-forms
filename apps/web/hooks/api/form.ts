@@ -98,3 +98,18 @@ export const useSetPublished = (formId: string) => {
 
     return { setPublishedAsync, error, status };
 };
+
+export const useDeleteForm = () => {
+    const utils = trpc.useUtils();
+    const {
+        mutateAsync: deleteFormAsync,
+        error,
+        status,
+    } = trpc.form.deleteForm.useMutation({
+        onSuccess: async () => {
+            await utils.form.invalidate();
+        },
+    });
+
+    return { deleteFormAsync, error, status };
+};

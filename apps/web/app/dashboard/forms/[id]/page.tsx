@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useParams } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { Pencil, Trash2 } from "lucide-react";
 
-import { useCreateField, useDeleteField, useGetFields } from "~/hooks/api/form-field";
-import { useGetFormForOwner, useSetPublished } from "~/hooks/api/form";
+import { useCreateField, useDeleteField, useGetFields, useUpdateField } from "~/hooks/api/form-field";
+import { useDeleteForm, useGetFormForOwner, useSetPublished } from "~/hooks/api/form";
 
 import {
     Dialog,
@@ -20,9 +20,11 @@ import { DrawablyButton, DrawablyCard, DrawablyCheckbox, DrawablyInput, Drawably
 
 export default function FormBuilder() {
     const params = useParams();
+    const router = useRouter();
     const formId = params?.id as string | undefined;
 
     const [open, setOpen] = useState(false);
+    const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
     const [label, setLabel] = useState("");
     const [type, setType] = useState<
         | "SHORT_TEXT"
@@ -43,32 +45,51 @@ export default function FormBuilder() {
 
     const { createFieldAsync, status, error } = useCreateField(formId ?? "");
     const { deleteFieldAsync, error: deleteError, status: deleteStatus } = useDeleteField(formId ?? "");
+    const { updateFieldAsync, error: updateError, status: updateStatus } = useUpdateField(formId ?? "");
     const { fields, isLoading: fieldsLoading } = useGetFields(formId ?? "");
     const { form } = useGetFormForOwner(formId ?? "");
     const { setPublishedAsync, error: publishError, status: publishStatus } = useSetPublished(formId ?? "");
+    const { deleteFormAsync, error: deleteFormError, status: deleteFormStatus } = useDeleteForm();
     const supportsPlaceholder = !["SINGLE_SELECT", "MULTI_SELECT", "YES_NO", "RATING"].includes(type);
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!formId) return;
 
-        await createFieldAsync({
+        const payload = {
             label: label.trim(),
             type,
-            formId,
             description: description.trim() ? description.trim() : undefined,
             placeholder: supportsPlaceholder && placeholder.trim() ? placeholder.trim() : undefined,
             isRequired,
             options: optionsText.split("\n").map((option) => option.trim()).filter(Boolean),
-        });
+        };
+
+        if (editingFieldId) {
+            await updateFieldAsync({ ...payload, id: editingFieldId, formId });
+        } else {
+            await createFieldAsync({ ...payload, formId });
+        }
 
         setOpen(false);
+        setEditingFieldId(null);
         setLabel("");
         setType("SHORT_TEXT");
         setDescription("");
         setPlaceholder("");
         setOptionsText("");
         setIsRequired(false);
+    };
+
+    const handleEdit = (field: NonNullable<typeof fields>[number]) => {
+        setEditingFieldId(field.id);
+        setLabel(field.label);
+        setType(field.type);
+        setDescription(field.description ?? "");
+        setPlaceholder(field.placeholder ?? "");
+        setOptionsText(field.options.join("\n"));
+        setIsRequired(field.isRequired);
+        setOpen(true);
     };
 
     const handleDelete = async (fieldId: string, fieldLabel: string) => {
@@ -81,6 +102,14 @@ export default function FormBuilder() {
         if (!form || publishStatus === "pending") return;
 
         await setPublishedAsync({ formId: formId ?? "", isPublished: !form?.isPublished });
+    };
+
+    const handleDeleteForm = async () => {
+        if (!formId || !form || deleteFormStatus === "pending") return;
+        if (!window.confirm(`Delete "${form.title}" and all its fields and submissions?`)) return;
+
+        await deleteFormAsync({ formId });
+        router.push("/dashboard/forms");
     };
 
     return (
@@ -107,6 +136,19 @@ export default function FormBuilder() {
                                 : form?.isPublished ? "Unpublish" : "Publish"}
                         </DrawablyButton>
 
+                        <DrawablyButton
+                            type="button"
+                            variant="outline"
+                            onClick={() => void handleDeleteForm()}
+                            disabled={!form || deleteFormStatus === "pending"}
+                            aria-label="Delete form"
+                            title="Delete form"
+                            className="text-[#e8a18c] hover:bg-[#e8a18c]/10 hover:text-[#f5c0af]"
+                        >
+                            <Trash2 className="size-4" />
+                            {deleteFormStatus === "pending" ? "Deleting..." : "Delete form"}
+                        </DrawablyButton>
+
                         <Dialog open={open} onOpenChange={setOpen}>
                             <DialogTrigger asChild>
                                 <span>
@@ -116,9 +158,9 @@ export default function FormBuilder() {
 
                         <DialogContent className="border-0 bg-(--theme-surface) text-(--theme-text) sm:max-w-md">
                             <DialogHeader>
-                                <DialogTitle>Create Field</DialogTitle>
+                                    <DialogTitle>{editingFieldId ? "Edit Field" : "Create Field"}</DialogTitle>
                                 <DialogDescription className="text-(--theme-muted)">
-                                    Add a field to this form.
+                                        {editingFieldId ? "Update this form field." : "Add a field to this form."}
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -218,18 +260,20 @@ export default function FormBuilder() {
                                     <span className="text-sm text-(--theme-text)/75">Required</span>
                                 </div>
 
-                                {error ? (
-                                    <p className="text-sm text-red-400">{error.message}</p>
+                                {error || updateError ? (
+                                    <p className="text-sm text-red-400">{(error ?? updateError)?.message}</p>
                                 ) : null}
 
                                 <DialogFooter>
                                     <DrawablyButton
                                         type="submit"
                                         variant="solid"
-                                        disabled={status === "pending" || !label.trim()}
+                                        disabled={status === "pending" || updateStatus === "pending" || !label.trim()}
                                         className="bg-(--theme-accent) text-(--theme-bg)"
                                     >
-                                        {status === "pending" ? "Creating..." : "Create Field"}
+                                        {status === "pending" || updateStatus === "pending"
+                                            ? editingFieldId ? "Saving..." : "Creating..."
+                                            : editingFieldId ? "Save Field" : "Create Field"}
                                     </DrawablyButton>
                                 </DialogFooter>
                             </form>
@@ -240,6 +284,9 @@ export default function FormBuilder() {
 
                 {publishError ? (
                     <p className="mb-4 text-sm text-red-400">{publishError.message}</p>
+                ) : null}
+                {deleteFormError ? (
+                    <p className="mb-4 text-sm text-red-400">{deleteFormError.message}</p>
                 ) : null}
 
                 <section className="grid gap-3">
@@ -266,6 +313,15 @@ export default function FormBuilder() {
 
                                 <div className="flex items-center gap-3">
                                     <div className="text-sm text-(--theme-muted)">{f.type}</div>
+                                    <DrawablyButton
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => handleEdit(f)}
+                                        aria-label={`Edit ${f.label}`}
+                                        title="Edit field"
+                                    >
+                                        <Pencil className="size-4" />
+                                    </DrawablyButton>
                                     <DrawablyButton
                                         type="button"
                                         variant="outline"

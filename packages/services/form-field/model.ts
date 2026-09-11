@@ -14,6 +14,12 @@ export const createFieldInput = z.object({
 
 export type CreateFieldInputType = z.infer<typeof createFieldInput>;
 
+export const updateFieldInput = createFieldInput.extend({
+    id: z.uuid(),
+});
+
+export type UpdateFieldInputType = z.infer<typeof updateFieldInput>;
+
 export const getFieldsType = z.object({
     formId: z.uuid().describe("UUID of the form to fetch fields for"),
 });

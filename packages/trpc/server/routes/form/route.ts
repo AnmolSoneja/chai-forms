@@ -10,6 +10,8 @@ import {
     listFormsOutputModel,
     setPublishedInputModel,
     setPublishedOutputModel,
+    deleteFormInputModel,
+    deleteFormOutputModel,
 } from "./model";
 
 const TAGS = ["Form"];
@@ -63,6 +65,19 @@ export const formRouter = router({
         .input(setPublishedInputModel)
         .output(setPublishedOutputModel)
         .mutation(async ({ input, ctx }) => formService.setPublished(input.formId, ctx.user.id, input.isPublished)),
+
+    deleteForm: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "DELETE",
+                path: getPath("/deleteForm"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .input(deleteFormInputModel)
+        .output(deleteFormOutputModel)
+        .mutation(async ({ input, ctx }) => formService.deleteForm(input.formId, ctx.user.id)),
 
     getFormForOwner: authenticatedProcedure
         .meta({

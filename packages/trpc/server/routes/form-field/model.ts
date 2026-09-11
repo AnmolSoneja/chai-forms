@@ -45,4 +45,12 @@ export const deleteFieldOutputModel = z.object({
     id: z.uuid(),
 });
 
+export const updateFieldInputModel = createFieldInputModel.extend({
+    id: z.uuid(),
+});
+
+export const updateFieldOutputModel = z.object({
+    id: z.uuid(),
+});
+
 export const getFieldsOutputModel = z.array(fieldOutputModel);

@@ -3,6 +3,7 @@ import {formsTable} from "@repo/database/models/form";
 import { createFormInput, listFormsByUserIdInput, ListFormsByUserIdInputType, type CreateFormInputType } from "./model";
 import { and, db, eq } from "@repo/database";
 import { formFieldsTable } from "@repo/database/models/form-field";
+import { formSubmissionTable } from "@repo/database/models/form-submission";
 
 export default class UserService {
     public async createForm(payload: CreateFormInputType) {
@@ -125,5 +126,31 @@ export default class UserService {
         }
 
         return result[0];
+    }
+
+    public async deleteForm(formId: string, userId: string) {
+        return db.transaction(async (tx) => {
+            const form = await tx
+                .select({ id: formsTable.id })
+                .from(formsTable)
+                .where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)));
+
+            if (!form[0]?.id) {
+                throw new Error("Form not found");
+            }
+
+            await tx.delete(formSubmissionTable).where(eq(formSubmissionTable.formId, formId));
+            await tx.delete(formFieldsTable).where(eq(formFieldsTable.formId, formId));
+            const result = await tx
+                .delete(formsTable)
+                .where(eq(formsTable.id, formId))
+                .returning({ id: formsTable.id });
+
+            if (!result[0]?.id) {
+                throw new Error("Form not found");
+            }
+
+            return result[0];
+        });
     }
 }

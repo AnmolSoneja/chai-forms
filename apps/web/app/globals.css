@@ -273,6 +273,10 @@ body[data-theme="brownie"] .border-white\/10 {
   --drawably-stroke: var(--theme-border);
 }
 
+.drawably-highlight {
+  font-family: inherit !important;
+}
+
 .frosting-spinner {
   display: inline-block;
   width: 2.75rem;
