@@ -264,8 +264,9 @@ body[data-theme="brownie"] .border-white\/10 {
   font-family: inherit !important;
 }
 
-.publish-button.drawably-button:disabled {
-  opacity: 1;
+.action-button.drawably-button:disabled {
+  opacity: 1 !important;
+  visibility: visible;
   font-family: inherit !important;
 }
 

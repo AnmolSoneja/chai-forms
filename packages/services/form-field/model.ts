@@ -20,6 +20,13 @@ export const updateFieldInput = createFieldInput.extend({
 
 export type UpdateFieldInputType = z.infer<typeof updateFieldInput>;
 
+export const reorderFieldsInput = z.object({
+    formId: z.uuid(),
+    orderedIds: z.array(z.uuid()).min(1),
+});
+
+export type ReorderFieldsInputType = z.infer<typeof reorderFieldsInput>;
+
 export const getFieldsType = z.object({
     formId: z.uuid().describe("UUID of the form to fetch fields for"),
 });

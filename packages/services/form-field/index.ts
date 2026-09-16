@@ -1,5 +1,12 @@
 import { and, db, eq, max } from "@repo/database";
-import { createFieldInput, CreateFieldInputType, updateFieldInput, UpdateFieldInputType } from "./model";
+import {
+    createFieldInput,
+    CreateFieldInputType,
+    reorderFieldsInput,
+    ReorderFieldsInputType,
+    updateFieldInput,
+    UpdateFieldInputType,
+} from "./model";
 import {formFieldsTable} from "@repo/database/models/form-field"
 import { formsTable } from "@repo/database/models/form";
 
@@ -145,6 +152,45 @@ export default class FormFieldService {
         }
 
         return result[0];
+    }
+
+    public async reorderFields(payload: ReorderFieldsInputType, userId: string) {
+        const { formId, orderedIds } = await reorderFieldsInput.parseAsync(payload);
+
+        if (new Set(orderedIds).size !== orderedIds.length) {
+            throw new Error("Field IDs must be unique");
+        }
+
+        return db.transaction(async (tx) => {
+            const ownedFields = await tx
+                .select({ id: formFieldsTable.id })
+                .from(formFieldsTable)
+                .innerJoin(formsTable, eq(formsTable.id, formFieldsTable.formId))
+                .where(and(
+                    eq(formFieldsTable.formId, formId),
+                    eq(formsTable.createdBy, userId),
+                ));
+
+            const ownedFieldIds = new Set(ownedFields.map((field) => field.id));
+            if (
+                ownedFieldIds.size !== orderedIds.length ||
+                orderedIds.some((id) => !ownedFieldIds.has(id))
+            ) {
+                throw new Error("Field list does not match the form");
+            }
+
+            for (const [position, id] of orderedIds.entries()) {
+                await tx
+                    .update(formFieldsTable)
+                    .set({ index: (position + 1).toString() })
+                    .where(and(
+                        eq(formFieldsTable.id, id),
+                        eq(formFieldsTable.formId, formId),
+                    ));
+            }
+
+            return { formId, orderedIds };
+        });
     }
 
 }

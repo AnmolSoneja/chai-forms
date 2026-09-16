@@ -49,6 +49,16 @@ export const updateFieldInputModel = createFieldInputModel.extend({
     id: z.uuid(),
 });
 
+export const reorderFieldsInputModel = z.object({
+    formId: z.uuid(),
+    orderedIds: z.array(z.uuid()).min(1),
+});
+
+export const reorderFieldsOutputModel = z.object({
+    formId: z.uuid(),
+    orderedIds: z.array(z.uuid()),
+});
+
 export const updateFieldOutputModel = z.object({
     id: z.uuid(),
 });

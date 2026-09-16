@@ -8,6 +8,8 @@ import {
     deleteFieldOutputModel,
     getFieldsInputModel,
     getFieldsOutputModel,
+    reorderFieldsInputModel,
+    reorderFieldsOutputModel,
     updateFieldInputModel,
     updateFieldOutputModel,
 } from "./model";
@@ -79,4 +81,17 @@ export const formsFieldRouter = router({
         .input(updateFieldInputModel)
         .output(updateFieldOutputModel)
         .mutation(async ({ input, ctx }) => formFieldService.updateField(input, ctx.user.id)),
+
+    reorderFields: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "PUT",
+                path: getPath("/reorderFields"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .input(reorderFieldsInputModel)
+        .output(reorderFieldsOutputModel)
+        .mutation(async ({ input, ctx }) => formFieldService.reorderFields(input, ctx.user.id)),
 });

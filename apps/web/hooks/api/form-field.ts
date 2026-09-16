@@ -61,6 +61,21 @@ export const useUpdateField = (formId: string) => {
     return { updateFieldAsync, error, status };
 };
 
+export const useReorderFields = (formId: string) => {
+    const utils = trpc.useUtils();
+    const {
+        mutateAsync: reorderFieldsAsync,
+        error,
+        status,
+    } = trpc.formField.reorderFields.useMutation({
+        onSuccess: async () => {
+            await utils.formField.getFields.invalidate({ formId });
+        },
+    });
+
+    return { reorderFieldsAsync, error, status };
+};
+
 export const useGetFields = (formId: string) => {
     const {
         data: fields,
