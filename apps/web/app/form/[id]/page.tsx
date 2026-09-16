@@ -1,13 +1,129 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Send } from "lucide-react";
 
 import { useGetFormWithFields } from "~/hooks/api/form";
 import { useCreateSubmission } from "~/hooks/api/form-submission";
 
-import { Star } from "lucide-react";
-import { DrawablyButton, DrawablyCheckbox, DrawablyInput, DrawablySelect, DrawablyTextarea } from "drawably/react";
+type FieldValue = string | string[];
+
+type ChatMessage =
+    | { id: string; role: "bot"; text: string }
+    | { id: string; role: "user"; text: string }
+    | { id: string; role: "system"; text: string };
+
+function uid() {
+    return Math.random().toString(36).slice(2);
+}
+
+// Builds the bot's question bubble text, including any options list.
+function questionText(field: { label: string; description?: string | null; type: string; options: string[]; isRequired: boolean }) {
+    let text = field.label;
+    if (field.description) text += `\n${field.description}`;
+
+    if (field.type === "SINGLE_SELECT") {
+        text += "\n" + field.options.map((o, i) => `${i + 1}. ${o}`).join("\n");
+        text += "\nReply with the number of your choice.";
+    } else if (field.type === "MULTI_SELECT") {
+        text += "\n" + field.options.map((o, i) => `${i + 1}. ${o}`).join("\n");
+        text += "\nReply with numbers separated by commas (e.g. 1,3).";
+    } else if (field.type === "YES_NO") {
+        text += "\n1. Yes\n2. No";
+    } else if (field.type === "RATING") {
+        text += "\nReply with a number from 1 to 5.";
+    } else if (field.type === "DATE") {
+        text += "\nReply in YYYY-MM-DD format.";
+    }
+
+    if (!field.isRequired) text += "\n(optional — type \"skip\" to skip)";
+    return text;
+}
+
+// Validates + converts raw chat input into a submission value.
+// Returns { ok: true, value, display } or { ok: false, error }.
+function parseAnswer(
+    raw: string,
+    field: { type: string; options: string[]; isRequired: boolean; label: string },
+): { ok: true; value: FieldValue; display: string } | { ok: false; error: string } {
+    const trimmed = raw.trim();
+
+    if (trimmed.toLowerCase() === "skip" && !field.isRequired) {
+        return { ok: true, value: field.type === "MULTI_SELECT" ? [] : "", display: "(skipped)" };
+    }
+
+    if (trimmed === "" && field.isRequired) {
+        return { ok: false, error: `${field.label} is required.` };
+    }
+    if (trimmed === "" && !field.isRequired) {
+        return { ok: true, value: field.type === "MULTI_SELECT" ? [] : "", display: "(skipped)" };
+    }
+
+    switch (field.type) {
+        case "EMAIL": {
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                return { ok: false, error: "That doesn't look like a valid email address." };
+            }
+            return { ok: true, value: trimmed, display: trimmed };
+        }
+
+        case "NUMBER": {
+            if (Number.isNaN(Number(trimmed))) {
+                return { ok: false, error: "Please enter a valid number." };
+            }
+            return { ok: true, value: trimmed, display: trimmed };
+        }
+
+        case "DATE": {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed) || Number.isNaN(new Date(trimmed).getTime())) {
+                return { ok: false, error: "Please enter a date as YYYY-MM-DD." };
+            }
+            return { ok: true, value: trimmed, display: trimmed };
+        }
+
+        case "PASSWORD": {
+            return { ok: true, value: trimmed, display: "•".repeat(Math.min(trimmed.length, 12)) };
+        }
+
+        case "YES_NO": {
+            const n = trimmed.toLowerCase();
+            if (n === "1" || n === "yes" || n === "y") return { ok: true, value: "true", display: "Yes" };
+            if (n === "2" || n === "no" || n === "n") return { ok: true, value: "false", display: "No" };
+            return { ok: false, error: "Reply with 1 for Yes or 2 for No." };
+        }
+
+        case "SINGLE_SELECT": {
+            const idx = Number(trimmed) - 1;
+            if (!Number.isInteger(idx) || idx < 0 || idx >= field.options.length) {
+                return { ok: false, error: `Reply with a number from 1 to ${field.options.length}.` };
+            }
+            return { ok: true, value: field.options[idx]!, display: field.options[idx]! };
+        }
+
+        case "MULTI_SELECT": {
+            const parts = trimmed.split(",").map((p) => p.trim()).filter(Boolean);
+            const indices = parts.map((p) => Number(p) - 1);
+            const invalid = indices.some((i) => !Number.isInteger(i) || i < 0 || i >= field.options.length);
+            if (parts.length === 0 || invalid) {
+                return { ok: false, error: `Reply with one or more numbers from 1 to ${field.options.length}, separated by commas.` };
+            }
+            const values = [...new Set(indices.map((i) => field.options[i]!))];
+            return { ok: true, value: values, display: values.join(", ") };
+        }
+
+        case "RATING": {
+            const n = Number(trimmed);
+            if (!Number.isInteger(n) || n < 1 || n > 5) {
+                return { ok: false, error: "Reply with a number from 1 to 5." };
+            }
+            return { ok: true, value: String(n), display: "★".repeat(n) + "☆".repeat(5 - n) };
+        }
+
+        default:
+            return { ok: true, value: trimmed, display: trimmed };
+    }
+}
 
 export default function PublicFormPage() {
     const params = useParams();
@@ -15,253 +131,161 @@ export default function PublicFormPage() {
     const formId = params?.id as string | undefined;
 
     const { form, isLoading } = useGetFormWithFields(formId ?? "");
-    const { createSubmissionAsync, status, error } = useCreateSubmission();
+    const { createSubmissionAsync, status: submitStatus, error: submitError } = useCreateSubmission();
 
-    const [values, setValues] = useState<Record<string, string | string[]>>({});
-    const [validationError, setValidationError] = useState<string | null>(null);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [fieldIndex, setFieldIndex] = useState(0);
+    const [draft, setDraft] = useState("");
+    const [answers, setAnswers] = useState<Record<string, FieldValue>>({});
+    const [finished, setFinished] = useState(false);
+    const [systemNote, setSystemNote] = useState<string | null>(null);
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const askedFieldRef = useRef<string | null>(null);
+
+    const fields = form?.fields ?? [];
+    const currentField = fields[fieldIndex];
+
+    // Ask the first/next question exactly once per field.
+    useEffect(() => {
+        if (!currentField || askedFieldRef.current === currentField.id) return;
+        askedFieldRef.current = currentField.id;
+        setMessages((m) => [...m, { id: uid(), role: "bot", text: questionText(currentField) }]);
+    }, [currentField]);
 
     useEffect(() => {
-        if (!form?.fields) return;
-        const initial: Record<string, string | string[]> = {};
-        for (const f of form.fields) initial[f.id] = f.type === "MULTI_SELECT" ? [] : "";
-        setValues(initial);
-    }, [form?.fields]);
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }, [messages, systemNote]);
 
-    const handleChange = (fieldId: string, v: string | string[]) => {
-        setValues((s) => ({ ...s, [fieldId]: v }));
-    };
-
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
+    const submitAll = async (finalAnswers: Record<string, FieldValue>) => {
         if (!formId) return;
-
-        const fields = form?.fields ?? [];
-        const invalidEmail = fields.find(
-            (field) => field.type === "EMAIL"
-                && typeof values[field.id] === "string"
-                && values[field.id] !== ""
-                && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values[field.id] as string),
-        );
-        const missingRequiredGroup = fields.find(
-            (field) => {
-                const value = values[field.id];
-                return field.isRequired
-                    && ((field.type === "MULTI_SELECT" && (!Array.isArray(value) || value.length === 0))
-                        || (field.type === "RATING" && !value));
-            },
-        );
-
-        if (invalidEmail) {
-            setValidationError(`${invalidEmail.label} must be a valid email address.`);
-            return;
-        }
-        if (missingRequiredGroup) {
-            setValidationError(`${missingRequiredGroup.label} is required.`);
-            return;
-        }
-        setValidationError(null);
-
-        const payload = {
-            formId,
-            values: Object.entries(values).map(([fieldId, value]) => ({ fieldId, value })),
-        };
-
+        setMessages((m) => [...m, { id: uid(), role: "bot", text: "Sending your answers…" }]);
         try {
-            await createSubmissionAsync(payload);
+            await createSubmissionAsync({
+                formId,
+                values: Object.entries(finalAnswers).map(([fieldId, value]) => ({ fieldId, value })),
+            });
             router.replace(`/form/${formId}/confirmation`);
         } catch {
-            // The mutation error is rendered below the fields.
+            setSystemNote("Something went wrong submitting your response — please try again.");
         }
     };
 
-    if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-[#fff3b0] p-6 text-[#5c3d2e]"><span className="frosting-spinner" aria-label="Loading" /></div>;
-    if (!form) return <div className="flex min-h-screen items-center justify-center bg-[#fff3b0] p-6 text-[#5c3d2e]">Form not found.</div>;
+    const handleSend = (e: FormEvent) => {
+        e.preventDefault();
+        if (!currentField || finished) return;
+
+        const result = parseAnswer(draft, currentField);
+
+        if (!result.ok) {
+            setSystemNote(result.error);
+            return;
+        }
+
+        setSystemNote(null);
+        setMessages((m) => [...m, { id: uid(), role: "user", text: result.display }]);
+        const nextAnswers = { ...answers, [currentField.id]: result.value };
+        setAnswers(nextAnswers);
+        setDraft("");
+
+        const nextIndex = fieldIndex + 1;
+        if (nextIndex >= fields.length) {
+            setFinished(true);
+            void submitAll(nextAnswers);
+        } else {
+            setFieldIndex(nextIndex);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-(--theme-bg) p-6 text-(--theme-text)">
+                <span className="frosting-spinner" aria-label="Loading" />
+            </div>
+        );
+    }
+    if (!form) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-(--theme-bg) p-6 text-(--theme-text)">
+                Form not found.
+            </div>
+        );
+    }
 
     return (
-        <main className="relative min-h-screen overflow-hidden bg-[#fff3b0] px-6 py-8 text-[#5c3d2e]">
-            <div className="pointer-events-none absolute right-8 top-8 text-4xl tracking-[0.5em] text-[#ff8fab]">✦ ･ ✧</div>
-            <div className="mx-auto max-w-2xl">
-                <div className="mb-8 rounded-[1.5rem] border-2 border-[#d9b6a5] bg-[#fffdf7] p-6 shadow-[0_18px_50px_rgba(92,61,46,0.12)]">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d46c87]">A little something for you</p>
-                    <h1 className="mt-2 text-3xl font-semibold">{form.title}</h1>
-                    {form.description ? <p className="mt-2 text-[#8a6755]">{form.description}</p> : null}
+        <main className="flex h-screen flex-col bg-(--theme-bg) text-(--theme-text)">
+            {/* Header */}
+            <div className="shrink-0 border-b border-(--theme-border)/40 bg-(--theme-surface) px-6 py-4">
+                <div className="mx-auto max-w-xl">
+                    <h1 className="text-lg font-semibold">{form.title}</h1>
+                    {form.description ? (
+                        <p className="text-sm text-(--theme-muted)">{form.description}</p>
+                    ) : null}
                 </div>
+            </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4 rounded-[1.5rem] border-2 border-[#d9b6a5] bg-[#fffdf7] p-6 shadow-[0_18px_50px_rgba(92,61,46,0.12)]">
-                    {form.fields.map((f) => (
-                        <div key={f.id} className="space-y-1">
-                            <label className="block text-sm font-medium text-[#5c3d2e]">
-                                {f.label}
-                                {f.isRequired ? <span className="text-red-400"> *</span> : null}
-                            </label>
-                            {f.type === "SHORT_TEXT" && (
-                                <DrawablyInput
-                                    value={typeof values[f.id] === "string" ? values[f.id] : ""}
-                                    onChange={(e) => handleChange(f.id, e.target.value)}
-                                    placeholder={f.placeholder ?? ""}
-                                    required={f.isRequired}
-                                    className="block w-full [&>input]:h-10"
-                                />
-                            )}
-
-                            {f.type === "LONG_TEXT" && (
-                                <DrawablyTextarea
-                                    value={typeof values[f.id] === "string" ? values[f.id] : ""}
-                                    onChange={(e) => handleChange(f.id, e.target.value)}
-                                    placeholder={f.placeholder ?? ""}
-                                    required={f.isRequired}
-                                    className="block w-full [&>textarea]:min-h-28"
-                                />
-                            )}
-
-                            {f.type === "NUMBER" && (
-                                <DrawablyInput
-                                    type="number"
-                                    value={typeof values[f.id] === "string" ? values[f.id] : ""}
-                                    onChange={(e) => handleChange(f.id, e.target.value)}
-                                    placeholder={f.placeholder ?? ""}
-                                    required={f.isRequired}
-                                    className="block w-full [&>input]:h-10"
-                                />
-                            )}
-
-                            {f.type === "EMAIL" && (
-                                <DrawablyInput
-                                    type="email"
-                                    value={typeof values[f.id] === "string" ? values[f.id] : ""}
-                                    onChange={(e) => handleChange(f.id, e.target.value)}
-                                    placeholder={f.placeholder ?? ""}
-                                    required={f.isRequired}
-                                    className="block w-full [&>input]:h-10"
-                                />
-                            )}
-
-                            {f.type === "PASSWORD" && (
-                                <DrawablyInput
-                                    type="password"
-                                    value={typeof values[f.id] === "string" ? values[f.id] : ""}
-                                    onChange={(e) => handleChange(f.id, e.target.value)}
-                                    placeholder={f.placeholder ?? ""}
-                                    required={f.isRequired}
-                                    className="block w-full [&>input]:h-10"
-                                />
-                            )}
-
-                            {f.type === "DATE" && (
-                                <DrawablyInput
-                                    type="date"
-                                    value={typeof values[f.id] === "string" ? values[f.id] : ""}
-                                    onChange={(e) => handleChange(f.id, e.target.value)}
-                                    required={f.isRequired}
-                                    className="block w-full [&>input]:h-10"
-                                />
-                            )}
-
-                            {f.type === "YES_NO" && (
-                                <DrawablySelect
-                                    value={typeof values[f.id] === "string" ? values[f.id] : ""}
-                                    onChange={(e) => handleChange(f.id, e.target.value)}
-                                    className="block w-full bg-transparent text-sm text-(--theme-text) [&>select]:h-10"
-                                    required={f.isRequired}
+            {/* Chat thread */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
+                <div className="mx-auto flex max-w-xl flex-col gap-3">
+                    {messages.map((msg) =>
+                        msg.role === "system" ? null : (
+                            <div
+                                key={msg.id}
+                                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                            >
+                                <div
+                                    className={`max-w-[80%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm ${
+                                        msg.role === "user"
+                                            ? "bg-(--theme-accent) text-(--theme-bg)"
+                                            : "bg-(--theme-card) text-(--theme-text)"
+                                    }`}
                                 >
-                                    <option value="">Select...</option>
-                                    <option value="true">Yes</option>
-                                    <option value="false">No</option>
-                                </DrawablySelect>
-                            )}
-
-                            {f.type === "SINGLE_SELECT" && (
-                                <DrawablySelect
-                                    value={typeof values[f.id] === "string" ? values[f.id] : ""}
-                                    onChange={(e) => handleChange(f.id, e.target.value)}
-                                    className="block w-full bg-transparent text-sm text-(--theme-text) [&>select]:h-10"
-                                    required={f.isRequired}
-                                >
-                                    <option value="">Select...</option>
-                                    {f.options.map((option) => (
-                                        <option key={option} value={option}>{option}</option>
-                                    ))}
-                                </DrawablySelect>
-                            )}
-
-                            {f.type === "MULTI_SELECT" && (
-                                <div className="space-y-3" role="group" aria-label={f.label}>
-                                    {f.options.map((option) => {
-                                        const value = values[f.id];
-                                        const current = Array.isArray(value) ? value : [];
-                                        const selected = current.includes(option);
-                                        return (
-                                            <label key={option} className="flex items-center gap-3 text-sm text-white/80">
-                                                <DrawablyCheckbox
-                                                    checked={selected}
-                                                    onChange={(event) => {
-                                                        handleChange(
-                                                            f.id,
-                                                            event.target.checked ? [...current, option] : current.filter((value) => value !== option),
-                                                        );
-                                                    }}
-                                                />
-                                                {option}
-                                            </label>
-                                        );
-                                    })}
+                                    {msg.text}
                                 </div>
-                            )}
+                            </div>
+                        ),
+                    )}
 
-                            {f.type === "RATING" && (
-                                <div className="flex gap-2" role="radiogroup" aria-label={f.label}>
-                                    {[1, 2, 3, 4, 5].map((rating) => (
-                                        <DrawablyButton
-                                            key={rating}
-                                            type="button"
-                                            variant="outline"
-                                            aria-checked={values[f.id] === String(rating)}
-                                            role="radio"
-                                            onClick={() => handleChange(f.id, String(rating))}
-                                            aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
-                                            className="text-yellow-400 transition-transform hover:scale-110"
-                                        >
-                                            <Star
-                                                className="size-8"
-                                                fill={values[f.id] === String(rating) ? "currentColor" : "none"}
-                                            />
-                                        </DrawablyButton>
-                                    ))}
-                                    {f.isRequired && (
-                                        <input
-                                            tabIndex={-1}
-                                            required={!values[f.id]}
-                                            value={typeof values[f.id] === "string" ? values[f.id] : ""}
-                                            onChange={() => undefined}
-                                            className="sr-only"
-                                            aria-label={`${f.label} rating`}
-                                        />
-                                    )}
-                                </div>
-                            )}
-
-                            {f.description ? (
-                                    <div className="text-sm text-[#8a6755]">{f.description}</div>
-                            ) : null}
+                    {finished && submitStatus === "pending" && (
+                        <div className="flex justify-center">
+                            <span className="frosting-spinner" aria-label="Submitting" />
                         </div>
-                    ))}
+                    )}
 
-                    {validationError ? <div className="text-sm text-[#b34f66]">{validationError}</div> : null}
-                    {error ? <div className="text-sm text-[#b34f66]">{error.message}</div> : null}
+                    {(systemNote || submitError) && (
+                        <div className="flex justify-center py-1">
+                            <span className="rounded-full bg-(--theme-muted)/15 px-3 py-1 text-xs text-(--theme-muted)">
+                                {systemNote ?? submitError?.message}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
 
-                    <div>
-                        <DrawablyButton
+            {/* Composer */}
+            {!finished && (
+                <form
+                    onSubmit={handleSend}
+                    className="shrink-0 border-t border-(--theme-border)/40 bg-(--theme-surface) px-4 py-3"
+                >
+                    <div className="mx-auto flex max-w-xl items-center gap-2">
+                        <input
+                            value={draft}
+                            onChange={(e) => setDraft(e.target.value)}
+                            placeholder="Type your answer…"
+                            autoFocus
+                            className="h-11 flex-1 rounded-full border border-(--theme-border)/50 bg-(--theme-card) px-4 text-sm text-(--theme-text) placeholder:text-(--theme-muted) focus:border-(--theme-accent) focus:outline-none"
+                        />
+                        <button
                             type="submit"
-                            disabled={status === "pending"}
-                            variant="solid"
-                            state={status === "pending" ? "loading" : "idle"}
-                            className="bg-[#ffb3c6] text-[#5c3d2e]"
+                            aria-label="Send answer"
+                            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-(--theme-accent) text-(--theme-bg) transition hover:brightness-105"
                         >
-                            {status === "pending" ? "Submitting..." : "Submit"}
-                        </DrawablyButton>
+                            <Send className="size-4" />
+                        </button>
                     </div>
                 </form>
-            </div>
+            )}
         </main>
     );
 }
