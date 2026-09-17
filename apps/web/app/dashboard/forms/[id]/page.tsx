@@ -3,7 +3,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-    Pencil,
     Trash2,
     GripVertical,
     Type,
@@ -13,7 +12,6 @@ import {
     CircleDot,
     ListChecks,
     Star,
-    CheckSquare,
     Calendar,
     KeyRound,
     ToggleLeft,
@@ -37,7 +35,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { useCreateField, useDeleteField, useGetFields, useReorderFields, useUpdateField } from "~/hooks/api/form-field";
-import { useDeleteForm, useGetFormForOwner, useSetPublished } from "~/hooks/api/form";
+import { useDeleteForm, useGetFormForOwner, useSetPublished, useUpdateForm } from "~/hooks/api/form";
 
 import {
     DrawablyButton,
@@ -186,6 +184,7 @@ export default function FormBuilder() {
     const [panelOptionsText, setPanelOptionsText] = useState("");
     const [panelRequired, setPanelRequired] = useState(false);
     const [localOrder, setLocalOrder] = useState<string[]>([]);
+    const [formTitle, setFormTitle] = useState("");
 
     const { createFieldAsync, status: createStatus } = useCreateField(formId ?? "");
     const { deleteFieldAsync, status: deleteStatus } = useDeleteField(formId ?? "");
@@ -195,6 +194,7 @@ export default function FormBuilder() {
     const { form } = useGetFormForOwner(formId ?? "");
     const { setPublishedAsync, status: publishStatus } = useSetPublished(formId ?? "");
     const { deleteFormAsync, status: deleteFormStatus } = useDeleteForm();
+    const { updateFormAsync, status: formTitleStatus } = useUpdateForm(formId ?? "");
 
     const supportsPlaceholder = !["SINGLE_SELECT", "MULTI_SELECT", "YES_NO", "RATING"].includes(panelType);
     const supportsOptions = panelType === "SINGLE_SELECT" || panelType === "MULTI_SELECT";
@@ -209,6 +209,10 @@ export default function FormBuilder() {
         .filter((f): f is NonNullable<typeof f> => Boolean(f));
 
     const selectedField = orderedFields.find((f) => f.id === selectedFieldId) ?? null;
+
+    useEffect(() => {
+        if (form) setFormTitle(form.title);
+    }, [form]);
 
     useEffect(() => {
     if (!selectedFieldId) return;
@@ -287,7 +291,33 @@ export default function FormBuilder() {
 
     const handlePublishToggle = async () => {
         if (!form || publishStatus === "pending") return;
-        await setPublishedAsync({ formId: formId ?? "", isPublished: !form.isPublished });
+
+        const isPublishing = !form.isPublished;
+        const isTemplate = isPublishing
+            ? window.confirm("Do you also want this form to be published as a template?")
+            : false;
+
+        await setPublishedAsync({
+            formId: formId ?? "",
+            isPublished: isPublishing,
+            isTemplate,
+        });
+    };
+
+    const handleFormTitleSave = async () => {
+        const title = formTitle.trim();
+        if (!formId || !form || formTitleStatus === "pending") return;
+        if (!title) {
+            setFormTitle(form.title);
+            return;
+        }
+        if (title === form.title) return;
+
+        try {
+            await updateFormAsync({ formId, title });
+        } catch {
+            setFormTitle(form.title);
+        }
     };
 
     const handleDeleteForm = async () => {
@@ -299,7 +329,7 @@ export default function FormBuilder() {
 
     const handleCopyLink = () => {
         if (!formId) return;
-        const url = `${window.location.origin}/f/${formId}`;
+        const url = `${window.location.origin}/form/${formId}`;
         void navigator.clipboard.writeText(url);
     };
 
@@ -318,12 +348,25 @@ export default function FormBuilder() {
                     <button
                         type="button"
                         onClick={() => router.push("/dashboard/forms")}
-                        className="text-sm text-(--theme-muted) hover:text-(--theme-text)"
+                        className="text-sm text-(--theme-muted) cursor-pointer hover:text-(--theme-text)"
                     >
                         Dashboard
                     </button>
                     <span className="text-(--theme-muted)">/</span>
-                    <span className="text-sm font-semibold">{form?.title ?? "Form Builder"}</span>
+                    <input
+                        value={formTitle}
+                        onChange={(event) => setFormTitle(event.target.value)}
+                        onBlur={() => void handleFormTitleSave()}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                                event.currentTarget.blur();
+                            }
+                        }}
+                        disabled={!form || formTitleStatus === "pending"}
+                        aria-label="Form title"
+                        placeholder="Form Builder"
+                        className="min-w-0 max-w-64 border-0 bg-transparent text-sm font-semibold text-(--theme-text) outline-none placeholder:text-(--theme-muted)"
+                    />
                 </div>
 
                 <nav className="flex items-center gap-1 text-sm font-medium">
@@ -333,9 +376,9 @@ export default function FormBuilder() {
                             type="button"
                             onClick={() => {
                                 if (label === "Responses") router.push(`/form/${formId}/submissions`);
-                                if (label === "Preview") router.push(`/f/${formId}`);
+                                if (label === "Preview") router.push(`/form/${formId}`);
                             }}
-                            className="rounded-lg px-3 py-1.5 text-(--theme-muted) transition hover:bg-(--theme-bg) hover:text-(--theme-text)"
+                            className="rounded-lg cursor-pointer px-3 py-1.5 text-(--theme-muted) transition hover:bg-(--theme-bg) hover:text-(--theme-text)"
                         >
                             {label}
                         </button>
@@ -537,7 +580,7 @@ export default function FormBuilder() {
                                 type="button"
                                 onClick={() => void handleSavePanel()}
                                 disabled={updateStatus === "pending" || !panelLabel.trim()}
-                                className="action-button w-full rounded-xl bg-(--theme-accent) px-3 py-2 text-sm font-bold text-(--theme-bg) transition hover:brightness-105 disabled:cursor-not-allowed"
+                                className="action-button cursor-pointer w-full rounded-xl bg-(--theme-accent) px-3 py-2 text-sm font-bold text-(--theme-bg) transition hover:brightness-105 disabled:cursor-not-allowed"
                             >
                                 {updateStatus === "pending" ? "Saving..." : "Save Changes"}
                             </button>

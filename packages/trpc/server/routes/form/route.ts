@@ -12,6 +12,11 @@ import {
     setPublishedOutputModel,
     deleteFormInputModel,
     deleteFormOutputModel,
+    listTemplatesOutputModel,
+    useTemplateInputModel,
+    useTemplateOutputModel,
+    updateFormInputModel,
+    updateFormOutputModel,
 } from "./model";
 
 const TAGS = ["Form"];
@@ -53,6 +58,19 @@ export const formRouter = router({
             return forms;
         }),
 
+    updateForm: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "PUT",
+                path: getPath("/updateForm"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .input(updateFormInputModel)
+        .output(updateFormOutputModel)
+        .mutation(async ({ input, ctx }) => formService.updateForm(input, ctx.user.id)),
+
     setPublished: authenticatedProcedure
         .meta({
             openapi: {
@@ -64,7 +82,32 @@ export const formRouter = router({
         })
         .input(setPublishedInputModel)
         .output(setPublishedOutputModel)
-        .mutation(async ({ input, ctx }) => formService.setPublished(input.formId, ctx.user.id, input.isPublished)),
+        .mutation(async ({ input, ctx }) => formService.setPublished(input.formId, ctx.user.id, input.isPublished, input.isTemplate)),
+
+    listTemplates: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "GET",
+                path: getPath("/listTemplates"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .output(listTemplatesOutputModel)
+        .query(async () => formService.listTemplates()),
+
+    useTemplate: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "POST",
+                path: getPath("/useTemplate"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .input(useTemplateInputModel)
+        .output(useTemplateOutputModel)
+        .mutation(async ({ input, ctx }) => formService.useTemplate(input.formId, ctx.user.id)),
 
     deleteForm: authenticatedProcedure
         .meta({

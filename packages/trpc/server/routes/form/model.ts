@@ -10,6 +10,16 @@ export const createFormOutputModel = z.object({
     id: z.string().describe("ID of the created form"),
 });
 
+export const updateFormInputModel = z.object({
+    formId: z.uuid(),
+    title: z.string().trim().min(1).max(50),
+});
+
+export const updateFormOutputModel = z.object({
+    id: z.uuid(),
+    title: z.string(),
+});
+
 export const listFormsInputModel = z.undefined();
 
 export const listFormsOutputModel = z.array(
@@ -18,6 +28,7 @@ export const listFormsOutputModel = z.array(
         title: z.string().max(50).describe("Title of the form."),
         description: z.string().max(300).nullable().optional().describe("descrption of the form"),
         isPublished: z.boolean(),
+        isTemplate: z.boolean(),
 
         createdAt: z.date().nullable().describe("Creation Timestamp"),
         updatedAt: z.date().nullable().describe("Updation Timestamp"),
@@ -33,6 +44,7 @@ export const getFormOutputModel = z.object({
     title: z.string(),
     description: z.string().nullable(),
     isPublished: z.boolean(),
+    isTemplate: z.boolean(),
     createdAt: z.string().nullable(),
     updatedAt: z.string().nullable(),
     fields: z.array(fieldOutputModel),
@@ -41,11 +53,13 @@ export const getFormOutputModel = z.object({
 export const setPublishedInputModel = z.object({
     formId: z.uuid(),
     isPublished: z.boolean(),
+    isTemplate: z.boolean().default(false),
 });
 
 export const setPublishedOutputModel = z.object({
     id: z.uuid(),
     isPublished: z.boolean(),
+    isTemplate: z.boolean(),
 });
 
 export const deleteFormInputModel = z.object({
@@ -53,6 +67,26 @@ export const deleteFormInputModel = z.object({
 });
 
 export const deleteFormOutputModel = z.object({
+    id: z.uuid(),
+});
+
+export const listTemplatesOutputModel = z.array(
+    z.object({
+        id: z.uuid(),
+        title: z.string(),
+        description: z.string().nullable().optional(),
+        isPublished: z.boolean(),
+        isTemplate: z.boolean(),
+        createdAt: z.date().nullable(),
+        updatedAt: z.date().nullable(),
+    }),
+);
+
+export const useTemplateInputModel = z.object({
+    formId: z.uuid(),
+});
+
+export const useTemplateOutputModel = z.object({
     id: z.uuid(),
 });
 

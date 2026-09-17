@@ -2,14 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { useGetSubmissionsByFormId } from "~/hooks/api/form-submission";
 import { useGetFields } from "~/hooks/api/form-field";
-import { DrawablyButton, DrawablyCard } from "drawably/react";
+import { DrawablyCard, DrawablyDivider, DrawablyToggle } from "drawably/react";
 
 type Submission = {
     id: string;
     formId?: string | null;
-    values?: { fieldId: string; value: string }[] | null;
+    values?: { fieldId: string; value: string | string[] }[] | null;
     createdAt?: string | null;
     updatedAt?: string | null;
 };
@@ -17,7 +18,8 @@ type Submission = {
 export default function FormSubmissions() {
     const params = useParams();
     const formId = params?.id as string | undefined;
-    const [showResponses, setShowResponses] = useState(false);
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+    const [expandAll, setExpandAll] = useState(false);
 
     const { submissions, isLoading: subsLoading, error } = useGetSubmissionsByFormId(formId ?? "");
     const { fields, isLoading: fieldsLoading } = useGetFields(formId ?? "");
@@ -45,101 +47,168 @@ export default function FormSubmissions() {
 
     const loading = subsLoading || fieldsLoading;
 
-    if (loading) return <div className="flex min-h-screen items-center justify-center bg-[#2b1e16] p-6 text-[#f5e6d3]"><span className="frosting-spinner" aria-label="Loading" /></div>;
-    if (error) return <div className="min-h-screen bg-[#2b1e16] p-6 text-[#e8a18c]">Error loading submissions</div>;
+    const toggleRow = (id: string) => {
+        setExpandedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const handleExpandAllToggle = (checked: boolean) => {
+        setExpandAll(checked);
+        setExpandedIds(checked ? new Set(rows.map((r) => r.id)) : new Set());
+    };
+
+    const isRowExpanded = (id: string) => expandAll || expandedIds.has(id);
+
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-(--theme-bg) p-6 text-(--theme-text)">
+                <span className="frosting-spinner" aria-label="Loading" />
+            </div>
+        );
+    }
+    if (error) {
+        return (
+            <div className="min-h-screen bg-(--theme-bg) p-6 text-(--theme-text)">
+                Error loading submissions
+            </div>
+        );
+    }
 
     return (
-        <main className="min-h-screen bg-[#2b1e16] p-6 text-[#f5e6d3]">
-            <DrawablyCard className="mx-auto max-w-5xl rounded-[1.5rem] bg-[#4a3428] p-6 shadow-[0_18px_60px_rgba(217,160,102,0.12)]">
-                <div className="mb-6 flex items-start justify-between gap-4">
-                    <div>
-                        <h2 className="text-lg font-semibold text-[#f5e6d3]">Response analytics</h2>
-                        <p className="mt-1 text-sm text-[#d9a066]">See how often users completed each field.</p>
+        <main className="min-h-screen bg-(--theme-bg) p-6 text-(--theme-text)">
+            <div className="mx-auto flex max-w-5xl flex-col gap-8">
+
+                {/* Responses */}
+                <DrawablyCard className="rounded-[1.5rem] bg-(--theme-surface) p-6 shadow-[0_18px_60px_rgba(217,160,102,0.12)]">
+                    <div className="mb-5 flex items-start justify-between gap-4">
+                        <div>
+                            <h2 className="text-lg font-semibold text-(--theme-text)">Responses</h2>
+                            <p className="mt-1 text-sm text-(--theme-muted)">
+                                {rows.length} {rows.length === 1 ? "submission" : "submissions"} · click a row to expand it
+                            </p>
+                        </div>
+
+                        {rows.length > 0 && (
+                            <label className="flex shrink-0 items-center gap-2 text-sm text-(--theme-muted)">
+                                Expand all
+                                <DrawablyToggle
+                                    seed={45194250}
+                                    roughness={0.6}
+                                    boil={0.5}
+                                    width={1.5}
+                                    checked={expandAll}
+                                    onChange={(e) => handleExpandAllToggle(e.target.checked)}
+                                />
+                            </label>
+                        )}
                     </div>
-                    <DrawablyButton
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowResponses((visible) => !visible)}
-                        className="shrink-0 border-[#d9a066] text-[#f5e6d3]"
-                    >
-                        {showResponses ? "Hide responses" : "Show responses"}
-                    </DrawablyButton>
-                </div>
 
-                <div className="mb-6 rounded-xl border border-[#76543e] bg-[#2b1e16] p-5">
-                    <div className="text-sm text-[#d9a066]">Total responses</div>
-                    <div className="mt-1 text-4xl font-semibold text-[#f5e6d3]">{rows.length}</div>
-                </div>
-
-                {fieldAnalytics.length > 0 ? (
-                    <div className="mb-6 grid gap-3 sm:grid-cols-2">
-                        {fieldAnalytics.map((field) => (
-                            <div key={field.id} className="rounded-xl border border-[#76543e] bg-[#2b1e16] p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <div className="truncate font-medium text-[#f5e6d3]">{field.label}</div>
-                                        <div className="mt-1 text-xs text-[#d9a066]">
-                                            {field.filledResponses} of {rows.length} responses
-                                        </div>
-                                    </div>
-                                    <div className="text-xl font-semibold text-[#f5e6d3]">{field.completionRate}%</div>
-                                </div>
-                                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#76543e]">
+                    {rows.length === 0 ? (
+                        <div className="rounded-xl border border-(--theme-border)/50 bg-(--theme-card) p-4 text-sm text-(--theme-muted)">
+                            No submissions yet.
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-2">
+                            {rows.map((r) => {
+                                const expanded = isRowExpanded(r.id);
+                                return (
                                     <div
-                                        className="h-full rounded-full bg-[#d9a066] transition-[width]"
-                                        style={{ width: `${field.completionRate}%` }}
-                                    />
+                                        key={r.id}
+                                        className="overflow-hidden rounded-xl border border-(--theme-border)/50 bg-(--theme-card)"
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleRow(r.id)}
+                                            className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-(--theme-accent)/10"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-mono text-xs text-(--theme-muted)">
+                                                    {r.id.slice(0, 12)}…
+                                                </span>
+                                                <span className="text-xs text-(--theme-muted)">
+                                                    {r.createdAt ? new Date(r.createdAt).toLocaleString() : "-"}
+                                                </span>
+                                            </div>
+                                            <ChevronDown
+                                                className={`size-4 shrink-0 text-(--theme-muted) transition-transform ${
+                                                    expanded ? "rotate-180" : ""
+                                                }`}
+                                            />
+                                        </button>
+
+                                        {expanded && (
+                                            <div className="flex flex-col divide-y divide-(--theme-border)/40 border-t border-(--theme-border)/40">
+                                                {orderedFields.map((f) => {
+                                                    const v = r.values?.find((x) => x.fieldId === f.id)?.value;
+                                                    const display = Array.isArray(v)
+                                                        ? v.length > 0 ? v.join(", ") : "-"
+                                                        : v && v.trim() !== "" ? v : "-";
+
+                                                    return (
+                                                        <div key={f.id} className="flex flex-col gap-0.5 px-4 py-2.5">
+                                                            <span className="text-xs font-semibold uppercase tracking-wide text-(--theme-muted)">
+                                                                {f.label}
+                                                            </span>
+                                                            <span className="text-sm text-(--theme-text)">{display}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </DrawablyCard>
+
+                <DrawablyDivider seed={1839204923} roughness={1.4} boil={0.4} width={1.5} />
+
+                {/* Analytics */}
+                <DrawablyCard className="rounded-[1.5rem] bg-(--theme-surface) p-6 shadow-[0_18px_60px_rgba(217,160,102,0.12)]">
+                    <div className="mb-5">
+                        <h2 className="text-lg font-semibold text-(--theme-text)">Response analytics</h2>
+                        <p className="mt-1 text-sm text-(--theme-muted)">See how often users completed each field.</p>
+                    </div>
+
+                    <div className="mb-6 rounded-xl border border-(--theme-border)/50 bg-(--theme-card) p-5">
+                        <div className="text-sm text-(--theme-muted)">Total responses</div>
+                        <div className="mt-1 text-4xl font-semibold text-(--theme-text)">{rows.length}</div>
+                    </div>
+
+                    {fieldAnalytics.length > 0 ? (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            {fieldAnalytics.map((field) => (
+                                <div key={field.id} className="rounded-xl border border-(--theme-border)/50 bg-(--theme-card) p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <div className="truncate font-medium text-(--theme-text)">{field.label}</div>
+                                            <div className="mt-1 text-xs text-(--theme-muted)">
+                                                {field.filledResponses} of {rows.length} responses
+                                            </div>
+                                        </div>
+                                        <div className="text-xl font-semibold text-(--theme-text)">{field.completionRate}%</div>
+                                    </div>
+                                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-(--theme-border)/50">
+                                        <div
+                                            className="h-full rounded-full bg-(--theme-accent) transition-[width]"
+                                            style={{ width: `${field.completionRate}%` }}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="mb-6 rounded-xl border border-[#76543e] bg-[#2b1e16] p-4 text-[#d9a066]">No fields yet.</div>
-                )}
-
-                {showResponses && (rows.length === 0 ? (
-                    <div className="rounded-xl border border-[#76543e] bg-[#2b1e16] p-4 text-[#d9a066]">No submissions yet.</div>
-                ) : (
-                    <div className="overflow-auto rounded-xl border border-[#76543e]">
-                        <table className="min-w-full table-fixed text-sm">
-                            <thead className="bg-[#2b1e16] text-left text-[#f5e6d3]">
-                                <tr>
-                                    <th className="px-4 py-2 w-1/6">Submitted</th>
-                                    {/** render a column per field in index order */}
-                                    {orderedFields.map((f) => (
-                                            <th key={f.id} className="px-4 py-2 text-left text-sm">
-                                                {f.label}
-                                            </th>
-                                        ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {rows.map((r) => (
-                                    <tr key={r.id} className="border-t border-[#76543e] odd:bg-[#4a3428] even:bg-[#543b2c]">
-                                        <td className="px-4 py-3 align-top text-xs text-[#d9a066]">
-                                            {r.createdAt
-                                                ? new Date(r.createdAt).toLocaleString()
-                                                : "-"}
-                                        </td>
-
-                                        {orderedFields.map((f) => {
-                                                const v = r.values?.find((x) => x.fieldId === f.id);
-                                                return (
-                                                    <td
-                                                        key={f.id}
-                                                        className="px-4 py-3 align-top text-xs text-[#f5e6d3]/85"
-                                                    >
-                                                        {v ? v.value : "-"}
-                                                    </td>
-                                                );
-                                            })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                ))}
-            </DrawablyCard>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-xl border border-(--theme-border)/50 bg-(--theme-card) p-4 text-(--theme-muted)">
+                            No fields yet.
+                        </div>
+                    )}
+                </DrawablyCard>
+            </div>
         </main>
     );
 }

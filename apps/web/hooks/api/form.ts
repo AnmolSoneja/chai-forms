@@ -50,6 +50,20 @@ export const useListForms = () => {
     };
 }
 
+export const useUpdateForm = (formId: string) => {
+    const utils = trpc.useUtils();
+    const { mutateAsync: updateFormAsync, error, status } = trpc.form.updateForm.useMutation({
+        onSuccess: async () => {
+            await Promise.all([
+                utils.form.getFormForOwner.invalidate({ formId }),
+                utils.form.listForms.invalidate(),
+            ]);
+        },
+    });
+
+    return { updateFormAsync, error, status };
+};
+
 export const useGetFormWithFields = (formId: string) => {
     const {
         data: form,
@@ -97,6 +111,23 @@ export const useSetPublished = (formId: string) => {
     });
 
     return { setPublishedAsync, error, status };
+};
+
+export const useListTemplates = () => {
+    const { data: templates, error, isLoading, status } = trpc.form.listTemplates.useQuery();
+
+    return { templates, error, isLoading, status };
+};
+
+export const useUseTemplate = () => {
+    const utils = trpc.useUtils();
+    const { mutateAsync: useTemplateAsync, error, status } = trpc.form.useTemplate.useMutation({
+        onSuccess: async () => {
+            await utils.form.listForms.invalidate();
+        },
+    });
+
+    return { useTemplateAsync, error, status };
 };
 
 export const useDeleteForm = () => {

@@ -1,6 +1,13 @@
 import {formsTable} from "@repo/database/models/form";
 
-import { createFormInput, listFormsByUserIdInput, ListFormsByUserIdInputType, type CreateFormInputType } from "./model";
+import {
+    createFormInput,
+    listFormsByUserIdInput,
+    ListFormsByUserIdInputType,
+    updateFormInput,
+    type CreateFormInputType,
+    type UpdateFormInputType,
+} from "./model";
 import { and, db, eq } from "@repo/database";
 import { formFieldsTable } from "@repo/database/models/form-field";
 import { formSubmissionTable } from "@repo/database/models/form-submission";
@@ -28,6 +35,7 @@ export default class UserService {
             title: formsTable.title,
             description: formsTable.description,
             isPublished: formsTable.isPublished,
+            isTemplate: formsTable.isTemplate,
             createdAt: formsTable.createdAt,
             updatedAt: formsTable.updatedAt,
         })
@@ -35,6 +43,21 @@ export default class UserService {
         .where(eq(formsTable.createdBy, userId));
 
         return forms;
+    }
+
+    public async updateForm(payload: UpdateFormInputType, userId: string) {
+        const { formId, title } = await updateFormInput.parseAsync(payload);
+        const result = await db
+            .update(formsTable)
+            .set({ title })
+            .where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)))
+            .returning({ id: formsTable.id, title: formsTable.title });
+
+        if (!result[0]?.id) {
+            throw new Error("Form not found");
+        }
+
+        return result[0];
     }
 
     public async getPublishedFormWithFields(formId: string) {
@@ -52,6 +75,7 @@ export default class UserService {
                 title: formsTable.title,
                 description: formsTable.description,
                 isPublished: formsTable.isPublished,
+                isTemplate: formsTable.isTemplate,
                 createdAt: formsTable.createdAt,
                 updatedAt: formsTable.updatedAt,
 
@@ -86,6 +110,7 @@ export default class UserService {
             title: first.title,
             description: first.description,
             isPublished: first.isPublished,
+            isTemplate: first.isTemplate,
             createdAt: first.createdAt ? first.createdAt.toISOString() : null,
             updatedAt: first.updatedAt  ? first.updatedAt.toISOString(): null,
             fields: [] as Array<any>,
@@ -114,18 +139,92 @@ export default class UserService {
         return form;
     }
 
-    public async setPublished(formId: string, userId: string, isPublished: boolean) {
+    public async setPublished(formId: string, userId: string, isPublished: boolean, isTemplate: boolean) {
         const result = await db
             .update(formsTable)
-            .set({ isPublished })
+            .set({ isPublished, isTemplate: isPublished && isTemplate })
             .where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)))
-            .returning({ id: formsTable.id, isPublished: formsTable.isPublished });
+            .returning({
+                id: formsTable.id,
+                isPublished: formsTable.isPublished,
+                isTemplate: formsTable.isTemplate,
+            });
 
         if (!result[0]?.id) {
             throw new Error("Form not found");
         }
 
         return result[0];
+    }
+
+    public async listTemplates() {
+        return db
+            .select({
+                id: formsTable.id,
+                title: formsTable.title,
+                description: formsTable.description,
+                isPublished: formsTable.isPublished,
+                isTemplate: formsTable.isTemplate,
+                createdAt: formsTable.createdAt,
+                updatedAt: formsTable.updatedAt,
+            })
+            .from(formsTable)
+            .where(and(eq(formsTable.isPublished, true), eq(formsTable.isTemplate, true)));
+    }
+
+    public async useTemplate(formId: string, userId: string) {
+        return db.transaction(async (tx) => {
+            const template = await tx
+                .select({
+                    id: formsTable.id,
+                    title: formsTable.title,
+                    description: formsTable.description,
+                    isPublished: formsTable.isPublished,
+                    isTemplate: formsTable.isTemplate,
+                })
+                .from(formsTable)
+                .where(and(
+                    eq(formsTable.id, formId),
+                    eq(formsTable.isPublished, true),
+                    eq(formsTable.isTemplate, true),
+                ));
+
+            if (!template[0]) throw new Error("Template not found");
+
+            const copiedForm = await tx
+                .insert(formsTable)
+                .values({
+                    title: `Copy of ${template[0].title}`.slice(0, 50),
+                    description: template[0].description,
+                    createdBy: userId,
+                })
+                .returning({ id: formsTable.id });
+
+            const newFormId = copiedForm[0]?.id;
+            if (!newFormId) throw new Error("Could not create form copy");
+
+            const fields = await tx
+                .select({
+                    label: formFieldsTable.label,
+                    labelKey: formFieldsTable.labelKey,
+                    description: formFieldsTable.description,
+                    placeholder: formFieldsTable.placeholder,
+                    isRequired: formFieldsTable.isRequired,
+                    index: formFieldsTable.index,
+                    type: formFieldsTable.type,
+                    options: formFieldsTable.options,
+                })
+                .from(formFieldsTable)
+                .where(eq(formFieldsTable.formId, formId));
+
+            if (fields.length > 0) {
+                await tx.insert(formFieldsTable).values(
+                    fields.map((field) => ({ ...field, formId: newFormId })),
+                );
+            }
+
+            return { id: newFormId };
+        });
     }
 
     public async deleteForm(formId: string, userId: string) {

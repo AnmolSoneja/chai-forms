@@ -30,11 +30,18 @@ export default class FormFieldService {
 
         return next.toString();
     }
-    public async createField(payload: CreateFieldInputType) {
+    public async createField(payload: CreateFieldInputType, userId: string) {
         const {label, type, isRequired, description, formId, placeholder, options}
          = await createFieldInput.parseAsync(payload);
 
         const normalizedOptions = [...new Set(options.map((option) => option.trim()))];
+        const ownedForm = await db
+            .select({ id: formsTable.id })
+            .from(formsTable)
+            .where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)));
+
+        if (!ownedForm[0]?.id) throw new Error("Form not found");
+
         const labelKey = toLabelKey(label);
         const index = await this.getNextIndex(formId);
 
@@ -68,30 +75,42 @@ export default class FormFieldService {
         return {id: result[0].id, labelKey, index};
     }
 
-    public async getFields(formId: string) {
+    public async getFields(formId: string, userId: string) {
         const result = await db
-            .select()
+            .select({ field: formFieldsTable })
             .from(formFieldsTable)
-            .where(eq(formFieldsTable.formId, formId))
+            .innerJoin(formsTable, eq(formsTable.id, formFieldsTable.formId))
+            .where(and(eq(formFieldsTable.formId, formId), eq(formsTable.createdBy, userId)))
             .orderBy(formFieldsTable.index);
 
-        return result.map((r) => ({
+        return result.map(({ field: r }) => ({
             id: r.id,
             formId: r.formId,
             label: r.label,
             labelKey: r.labelKey,
             description: r.description,
             placeholder: r.placeholder,
-            isRequired: r.isRequired, 
+            isRequired: r.isRequired,
             index: r.index.toString(),
-            type: r.type, 
+            type: r.type,
             options: r.options,
-            createdAt: r.createdAt? r.createdAt.toISOString() : null,
-            updatedAt: r.updatedAt? r.updatedAt.toISOString() : null,
+            createdAt: r.createdAt ? r.createdAt.toISOString() : null,
+            updatedAt: r.updatedAt ? r.updatedAt.toISOString() : null,
         }));
     }
 
-    public async deleteField(id: string) {
+    public async deleteField(id: string, userId: string) {
+        const ownedField = await db
+            .select({ id: formFieldsTable.id })
+            .from(formFieldsTable)
+            .innerJoin(formsTable, eq(formsTable.id, formFieldsTable.formId))
+            .where(and(
+                eq(formFieldsTable.id, id),
+                eq(formsTable.createdBy, userId),
+            ));
+
+        if (!ownedField[0]?.id) throw new Error("Field not found");
+
         const result = await db
             .delete(formFieldsTable)
             .where(eq(formFieldsTable.id, id))

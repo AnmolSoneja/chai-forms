@@ -1,0 +1,1 @@
+ALTER TABLE "forms" ADD COLUMN "is_template" boolean DEFAULT false NOT NULL;

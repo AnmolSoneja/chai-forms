@@ -29,12 +29,12 @@ export const formsFieldRouter = router({
         })
         .input(createFieldInputModel)
         .output(createFieldOutputModel)
-        .mutation(async ({input}) => {
+        .mutation(async ({input, ctx}) => {
             const {label, type, formId, description, placeholder, isRequired, options} = input;
 
             const result = await formFieldService.createField({
                 label, type, formId, description, placeholder, isRequired, options
-            });
+            }, ctx.user.id);
 
             return result;
         }),
@@ -50,9 +50,9 @@ export const formsFieldRouter = router({
         })
         .input(getFieldsInputModel)
         .output(getFieldsOutputModel)
-        .query(async ({ input }) => {
+        .query(async ({ input, ctx }) => {
             const { formId } = input;
-            const result = await formFieldService.getFields(formId);
+            const result = await formFieldService.getFields(formId, ctx.user.id);
             return result;
         }),
 
@@ -67,7 +67,7 @@ export const formsFieldRouter = router({
         })
         .input(deleteFieldInputModel)
         .output(deleteFieldOutputModel)
-        .mutation(async ({ input }) => formFieldService.deleteField(input.id)),
+        .mutation(async ({ input, ctx }) => formFieldService.deleteField(input.id, ctx.user.id)),
 
     updateField: authenticatedProcedure
         .meta({

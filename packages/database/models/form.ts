@@ -7,6 +7,7 @@ export const formsTable = pgTable("forms", {
     title: varchar("title", {length: 50},).notNull(),
     description: varchar("description", {length: 300}),
     isPublished: boolean("is_published").default(false).notNull(),
+    isTemplate: boolean("is_template").default(false).notNull(),
     
     createdBy: uuid("created_by").references(()=>usersTable.id),
     

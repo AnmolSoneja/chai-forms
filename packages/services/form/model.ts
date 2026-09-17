@@ -8,6 +8,13 @@ export const createFormInput = z.object({
 
 export type CreateFormInputType = z.infer<typeof createFormInput>;
 
+export const updateFormInput = z.object({
+    formId: z.uuid(),
+    title: z.string().trim().min(1).max(50),
+});
+
+export type UpdateFormInputType = z.infer<typeof updateFormInput>;
+
 export const listFormsByUserIdInput = z.object({
     userId: z.uuid().describe("UUID of the user."),
 });

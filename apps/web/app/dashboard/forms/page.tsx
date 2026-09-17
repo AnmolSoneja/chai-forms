@@ -11,8 +11,6 @@ import {
     Link2,
     LayoutGrid,
     Megaphone,
-    BarChart3,
-    LineChart,
     Compass,
     Trash2,
 } from "lucide-react";
@@ -52,7 +50,7 @@ function gradientFor(id: string) {
 
 const NAV_ITEMS = [
     { label: "Dashboard", href: "/dashboard/forms", icon: LayoutGrid, active: true },
-    { label: "Templates", href: "/dashboard/templates", icon: Megaphone, active: false },
+    { label: "Templates", href: "/dashboard/templates", icon: Megaphone, active: true },
     // { label: "Responses", href: "/dashboard/responses", icon: BarChart3, active: false },
     // { label: "Analytics", href: "/dashboard/analytics", icon: LineChart, active: false },
     { label: "API Docs", href: "/dashboard/api-docs", icon: Compass, active: false },
